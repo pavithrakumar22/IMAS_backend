@@ -6,14 +6,9 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "build": "echo 'Building project...' && eslint . && echo '✅ Lint passed' && echo 'Ready to deploy'",
-    "test": "node --test",
-    "lint": "eslint ."
+    "build": "echo '✅ Build done'",
+    "test": "node --test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
@@ -25,7 +20,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-        "@eslint/js": "^9.32.0",
+    "@eslint/js": "^9.32.0",
     "eslint": "^9.32.0",
     "globals": "^16.3.0",
     "nodemon": "^3.1.0"

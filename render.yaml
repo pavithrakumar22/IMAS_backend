@@ -2,8 +2,10 @@ services:
   - type: web
     name: imas-backend
     env: node
-    buildCommand: |
-      npm install
-      npm install -g eslint
-      npm run build
+    plan: free
+    buildCommand: npm install && npm run build
     startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
