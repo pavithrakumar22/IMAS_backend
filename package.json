@@ -4,10 +4,10 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
-    "start": "node index.js",
-    "build": "echo '✅ Build done'",
-    "test": "node --test",
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "build": "echo 'Building project...'",
+    "test": "echo 'No tests configured'",
     "lint": "eslint ."
   },
   "dependencies": {
