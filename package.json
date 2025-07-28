@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start": "node index.js",
-    "build": "echo 'No build step required for plain Node backend'",
     "test": "node --test",
-     "lint": "eslint ."
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
