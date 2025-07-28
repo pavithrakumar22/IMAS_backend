@@ -1,0 +1,43 @@
+# Node modules
+node_modules/
+
+# dotenv environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Optional: Swagger auto-generated docs
+swagger-output.json
+
+# Drizzle ORM config/cache
+drizzle.config.ts
+drizzle/migrations/
+drizzle/sqlite.db
+drizzle/migrations.sql
+
+# Jest test coverage
+coverage/
+
+# Local IDE settings
+.vscode/
+.idea/
+
+# Build artifacts (if using build step)
+dist/
+build/
+
+# Mac/Linux system files
+*.swp
+*.swo
+*.swn
