@@ -1,4 +1,4 @@
-name: Backend CI/CD
+name: Backend CI
 
 on:
   push:
@@ -27,18 +27,7 @@ jobs:
         run: npm test
 
       - name: 🧼 Run Linter (Optional)
-        run: npm run lint # if you have it
+        run: npm run lint # comment if not using
 
       - name: 🛠️ Build (Optional)
-        run: npm run build # if you have it
-
-  deploy:
-    name: 🚀 Deploy to Render
-    needs: ci
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: 🚀 Trigger Render Deploy Hook
-        run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: npm run build # comment if not using
