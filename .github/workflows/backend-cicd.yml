@@ -19,15 +19,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: 📦 Install dependencies
-        run: npm install
+        run: npm ci # Use ci for cleaner installs in CI
 
-      - name: 🧪 Run Tests
+      - name: 🛠️ Setup environment
+        run: |
+          echo "GOOGLE_API_KEY=${GOOGLE_API_KEY:-mock-key}" >> $GITHUB_ENV
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+
+      - name: � Run Tests
         run: npm test
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY || 'mock-key' }}
 
-      - name: 🧼 Run Linter (Optional)
-        run: npm run lint # comment if not using
+      - name: 🧼 Run Linter
+        run: npm run lint
 
-      - name: 🛠️ Build (Optional)
-        run: npm run build # comment if not using
+      - name: 📦 Build
+        run: npm run build
+
+      - name: 🚢 Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            test-results.json
+            coverage/
