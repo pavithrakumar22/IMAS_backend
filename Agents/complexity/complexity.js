@@ -30,7 +30,7 @@ const extractJsonFromMarkdown = (markdown) => {
 // Define the complexity tool
 const complexityTool = new DynamicTool({
   name: "complexity_classifier",
-  description: "Classifies medical queries into low, medium, or high complexity based on patient symptoms and conditions",
+  description: "Classifies medical queries into low, medium, or high complexity based on treatment requirements and CHW capabilities",
   func: async (input) => {
     try {
       // Robust input parsing
@@ -54,29 +54,52 @@ const complexityTool = new DynamicTool({
         throw new Error("Empty medical query provided");
       }
 
-      const prompt = `Analyze the following medical query and classify its complexity level as either LOW, MEDIUM, or HIGH based on:
-      
-1. Number and severity of symptoms
-2. Presence of chronic or multiple conditions
-3. Potential urgency/risk factors
-4. Complexity of diagnosis required
+      const prompt = `Analyze the following medical query and classify its complexity level as either LOW, MEDIUM, or HIGH based on treatment requirements and what a Community Health Worker (CHW) can manage:
 
-CLASSIFICATION GUIDELINES:
-- LOW: Single, mild symptom with no apparent risk factors (e.g., common cold, minor rash)
-- MEDIUM: Multiple symptoms or one moderate symptom (e.g., persistent cough with fever, moderate abdominal pain)
-- HIGH: Severe symptoms, multiple concerning symptoms, or potential emergency (e.g., chest pain with shortness of breath, neurological symptoms)
+CLASSIFICATION CRITERIA:
+1. LOW: Conditions that can be managed with:
+   - Basic over-the-counter medications (e.g., pain relievers, antacids)
+   - Simple home remedies or dietary changes
+   - No specialized diagnosis or monitoring required
+   - Can be safely treated by a Community Health Worker (CHW)
+   Examples: Common cold, mild headache, minor indigestion, simple diarrhea
+
+2. MEDIUM: Conditions that require:
+   - Prescription medications (oral)
+   - Basic diagnostic tests (e.g., rapid tests, basic lab work)
+   - Simple procedures like injections or wound dressings
+   - Short-term monitoring
+   - May require referral to a nurse or general practitioner
+   Examples: Urinary tract infection, moderate fever, uncomplicated skin infection
+
+3. HIGH: Conditions that:
+   - Require advanced medical intervention (IV medications, surgery)
+   - Need complex diagnostics (imaging, specialized lab tests)
+   - Involve potentially life-threatening symptoms
+   - Require hospitalization or specialist care
+   - Cannot be managed by a CHW
+   Examples: Chest pain, severe trauma, difficulty breathing, neurological symptoms
+
+ADDITIONAL FACTORS TO CONSIDER:
+- Multiple symptoms increase complexity level
+- Chronic conditions may increase complexity
+- Vulnerable populations (elderly, infants, pregnant) may increase complexity
 
 MEDICAL QUERY TO CLASSIFY:
 "${query}"
 
-Provide your response in JSON format with the following structure:
+Provide your response in STRICT JSON format with this structure:
 {
   "complexity": "LOW|MEDIUM|HIGH",
-  "reason": "Brief explanation for the classification",
-  "key_factors": ["list", "of", "key", "factors"]
+  "reason": "Explanation focusing on treatment requirements and CHW capabilities",
+  "key_factors": ["list", "of", "specific", "treatment", "factors"],
+  "suggested_action": "Recommended course of action based on complexity level"
 }
 
-Return ONLY the JSON object without any additional text or markdown formatting.`;
+Important:
+- Return ONLY the raw JSON without any additional text
+- Base classification primarily on treatment complexity
+- Assume resources are limited (CHW setting)`;
 
       const response = await llm.invoke(prompt);
       
@@ -86,19 +109,23 @@ Return ONLY the JSON object without any additional text or markdown formatting.`
         const jsonString = extractJsonFromMarkdown(rawContent);
         result = JSON.parse(jsonString);
         
+        // Validate the response structure
         if (!result.complexity || !['LOW', 'MEDIUM', 'HIGH'].includes(result.complexity)) {
           throw new Error("Invalid complexity value in response");
         }
         
+        // Ensure all required fields exist
         result.reason = result.reason || "No reason provided";
         result.key_factors = Array.isArray(result.key_factors) ? result.key_factors : ["Unspecified factors"];
+        result.suggested_action = result.suggested_action || "No suggested action provided";
         
       } catch (e) {
         console.warn("Failed to parse LLM response:", e);
         result = {
-          complexity: "LOW", // Default to LOW instead of MEDIUM for safety
+          complexity: "LOW",
           reason: "Automatic classification failed - defaulting to low complexity",
-          key_factors: ["Classification error"]
+          key_factors: ["Classification error"],
+          suggested_action: "Monitor symptoms and consult a CHW for reassessment"
         };
       }
       
@@ -106,9 +133,10 @@ Return ONLY the JSON object without any additional text or markdown formatting.`
     } catch (error) {
       console.error("Error in complexity classification:", error);
       return JSON.stringify({
-        complexity: "LOW", // Default to LOW instead of MEDIUM for safety
+        complexity: "LOW",
         reason: "Error occurred during classification: " + error.message,
-        key_factors: ["System error"]
+        key_factors: ["System error"],
+        suggested_action: "Seek CHW assistance for proper evaluation"
       });
     }
   }
