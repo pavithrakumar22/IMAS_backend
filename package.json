@@ -16,6 +16,7 @@
   "description": "",
   "dependencies": {
     "@langchain/core": "^0.3.66",
+    "@langchain/google-genai": "^0.2.16",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "drizzle-orm": "^0.44.3",
