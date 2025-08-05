@@ -7,26 +7,37 @@ export default class PCPAgent {
       model: "gemini-2.5-flash",
       generationConfig: { temperature: 0.5 }
     });
+    this.cachedResponse = null; // Store the generated response
   }
 
   async generateHealthPlan(symptoms) {
-    const professionalPrompt = `For ${symptoms}, provide concise medical guidance in this structure:
-    **Precautions**: [2 bullet points]
-    **Diet**: [3 foods to eat/avoid]
-    **Medications**: [OTC options if any]
-    **Activity**: [Exercise tips]
-    **Follow-up**: [When to seek help]
-    **Advice**: [You can provide (not more than 3 points or less)]
-    Keep each section to 1 sentence.`;
+    if (!this.cachedResponse) {
+      const professionalPrompt = `For ${symptoms}, provide concise medical guidance in this structure:
+      **Precautions**: [2 bullet points]
+      **Diet**: [3 foods to eat/avoid]
+      **Medications**: [OTC options if any]
+      **Activity**: [Exercise tips]
+      **Follow-up**: [When to seek help]
+      **Advice**: [You can provide (not more than 3 points or less)]
+      Keep each section to 1 sentence.`;
 
+      const professionalResponse = await this._generateResponse(professionalPrompt);
+      
+      this.cachedResponse = {
+        professional: professionalResponse,
+        simplified: await this._simplifyResponse(professionalResponse)
+      };
+    }
+    
+    return this.cachedResponse;
+  }
+
+  async _simplifyResponse(professionalResponse) {
     const simplifiedPrompt = `Simplify this medical advice for a patient:
-    ${await this._generateResponse(professionalPrompt)}
+    ${professionalResponse}
     Use simple language (8th grade level) and bullet points.`;
-
-    return {
-      professional: await this._generateResponse(professionalPrompt),
-      simplified: await this._generateResponse(simplifiedPrompt)
-    };
+    
+    return this._generateResponse(simplifiedPrompt);
   }
 
   async _generateResponse(prompt) {
@@ -37,5 +48,10 @@ export default class PCPAgent {
       console.error("API Error:", e.message);
       return "Could not generate response. Please try again.";
     }
+  }
+
+  // Clear cache if needed (e.g., for new symptoms)
+  clearCache() {
+    this.cachedResponse = null;
   }
 }
