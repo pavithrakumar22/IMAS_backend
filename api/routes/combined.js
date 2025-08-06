@@ -75,14 +75,12 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
 
     const complexityResultJson = await complexityTool.invoke(translatedText);
     
-
-// ✅ Defensive parsing
     let complexityResult;
     try {
     complexityResult = JSON.parse(complexityResultJson);
     }catch (jsonErr) {
-      console.error("❌ Failed to parse LLM response:", jsonErr);
-      console.error("📝 Raw response from complexityTool:", complexityResultJson);
+      console.error("Failed to parse LLM response:", jsonErr);
+      console.error("Raw response from complexityTool:", complexityResultJson);
 
     return res.status(500).json({
       error: "Failed to parse LLM response",
@@ -96,7 +94,7 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Error in /stt-and-classify:", err);
+    console.error("Error in /stt-and-classify:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
 
   } finally {
@@ -104,9 +102,9 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
-          console.warn("⚠️ Failed to delete uploaded file:", unlinkErr);
+          console.warn("Failed to delete uploaded file:", unlinkErr);
         } else {
-          console.log("🧹 Uploaded file deleted:", audioFile.path);
+          console.log("Uploaded file deleted:", audioFile.path);
         }
       });
     }
