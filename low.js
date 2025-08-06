@@ -1,22 +1,23 @@
-import PCPAgent from './Agents/Low/PCPAgent.js';  
+import dotenv from "dotenv";
+import LOWPCPAgent from "./Agents/Low/PCPAgent.js";
 
-const apiKey = "AIzaSyANrvWIA9OlYx4y5aoIglHc2yKGh6Pn7S0";
-const pcp = new PCPAgent(apiKey);
+dotenv.config(); 
 
-async function getHealthAdvice(symptoms) {
-  try {
-    console.log(`Getting advice for: ${symptoms}`);
-    const advice = await pcp.generateHealthPlan(symptoms);
-    
-    console.log("\nPROFESSIONAL ADVICE:");
-    console.log(advice.professional);
-    
-    console.log("\nPATIENT-FRIENDLY VERSION:");
-    console.log(advice.simplified);
-  } catch (error) {
-    console.error("Error:", error.message);
+async function run() {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    console.error("❌ Missing GOOGLE_API_KEY in .env file");
+    process.exit(1);
   }
+
+  const agent = new LOWPCPAgent(apiKey);
+
+  const symptoms = "Mild fever and sore throat for 2 days";
+  console.log("🔍 Generating health plan for symptoms:", symptoms);
+
+  const response = await agent.generateHealthPlan(symptoms);
+  console.log("✅ Generated Health Plan:");
+  console.log(JSON.stringify(response, null, 2));
 }
 
-const symptoms = process.argv[2] || "";
-getHealthAdvice(symptoms);
+run();
