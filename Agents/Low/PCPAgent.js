@@ -97,7 +97,6 @@ export default class LOWPCPAgent {
   _formatResponse(parsedResponse, symptoms) {
     return {
       metadata: {
-        generatedAt: new Date().toISOString(),
         source: "LOWPCPAgent",
         language: "en"
       },
