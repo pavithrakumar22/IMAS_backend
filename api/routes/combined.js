@@ -7,7 +7,7 @@ import { complexityTool } from '../../Agents/complexity/complexity.js';
 
 const router = express.Router();
 
-router.post('/translate-and-classify', async (req, res, next) => {
+router.post('/translate-and-classify', async (req, res) => {
   try {
     const { text, src, tgt } = req.body;
 
@@ -48,10 +48,12 @@ router.post('/translate-and-classify', async (req, res, next) => {
   }
 });
 const upload = multer({ dest: 'uploads/' });
+
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
+  let audioFile; 
   try {
     const { src, tgt } = req.body;
-    const audioFile = req.file;
+    audioFile = req.file;
 
     if (!audioFile || !src || !tgt) {
       return res.status(400).json({ error: "Missing 'audio', 'src', or 'tgt'." });
@@ -67,21 +69,26 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     });
 
     const translatedText = flaskResponse.data.output;
-
     if (!translatedText) {
       throw new Error("STT + Translation service returned no output.");
     }
+
     const complexityResultJson = await complexityTool.invoke(translatedText);
-    const complexityResult = JSON.parse(complexityResultJson);
+    
 
-    fs.unlink(audioFile.path, (err) => {
-      if (err) {
-        console.warn("⚠️ Failed to delete uploaded file:", err);
-      } else {
-        console.log("🧹 Uploaded file deleted:", audioFile.path);
-      }
+// ✅ Defensive parsing
+    let complexityResult;
+    try {
+    complexityResult = JSON.parse(complexityResultJson);
+    }catch (jsonErr) {
+      console.error("❌ Failed to parse LLM response:", jsonErr);
+      console.error("📝 Raw response from complexityTool:", complexityResultJson);
+
+    return res.status(500).json({
+      error: "Failed to parse LLM response",
+      rawResponse: complexityResultJson
     });
-
+}
 
     res.json({
       translated: translatedText,
@@ -89,17 +96,21 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Error in combined flow:", err);
-   
-  }
-  if (audioFile?.path) {
+    console.error("❌ Error in /stt-and-classify:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
+
+  } finally {
+
+    if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
-          console.warn("⚠️ Failed to delete uploaded file on error:", unlinkErr);
+          console.warn("⚠️ Failed to delete uploaded file:", unlinkErr);
+        } else {
+          console.log("🧹 Uploaded file deleted:", audioFile.path);
         }
       });
     }
-    res.status(500).json({ error: err.message || "Internal server error" });
+  }
 });
 
 
