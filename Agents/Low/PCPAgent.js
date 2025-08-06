@@ -145,7 +145,7 @@ export default class LOWPCPAgent {
   async _generateResponse(prompt) {
     try {
       const response = await this.llm.invoke(prompt);
-      const rawText = response.content; // LangChain returns an object with 'content'
+      const rawText = response.content; 
       return rawText;
     } catch (e) {
       console.error("API Error:", e.message);
