@@ -1,6 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { loadEnv } from "../../loadEnv.js";
-import {config} from 'dotenv';
 
 loadEnv();
 
@@ -97,6 +96,7 @@ Example Output:
         confidence: id === "general_physician" ? 0.5 : 0.9
       }));
     } catch (e) {
+      console.log(`Error: ${e}`)
       console.error("Gemini parsing error:", response);
       return [{
         id: "general_physician",
