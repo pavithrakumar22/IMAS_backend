@@ -1,8 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import {loadEnv} from '../../loadEnv.js'
+import { loadEnv } from "../../loadEnv.js";
 import {config} from 'dotenv';
-// import path from 'path';
-// config({path: path.resolve("D:/3-1/IMAS/IMAS_backend/.env")})
+
 loadEnv();
 
 class GeminiCoordinator {
