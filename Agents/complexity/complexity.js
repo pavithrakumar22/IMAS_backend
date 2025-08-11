@@ -7,7 +7,7 @@ loadEnv();
 const llm = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
   maxOutputTokens: 2048,
-  apiKey: process.env.GOOGLE_API_KEY
+  apiKey: process.env.GOOGLE_API_KEY || "AIzaSyDr2z7gIVnovRtOOkya-b0BZsadhOI4i3U"
 });
 
 // Helper function to extract JSON from Markdown response
