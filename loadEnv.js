@@ -8,3 +8,4 @@ const __dirname = path.dirname(__filename);
 export function loadEnv() {
   config({ path: path.resolve(__dirname, '.env') });
 }
+
