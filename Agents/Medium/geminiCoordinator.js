@@ -5,8 +5,7 @@ loadEnv();
 
 class GeminiCoordinator {
   constructor() {
-    console.log(`*******************${process.env.GEMINI_API_KEY}`);
-    this.genAI = new GoogleGenerativeAI("AIzaSyDr2z7gIVnovRtOOkya-b0BZsadhOI4i3U");
+    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
 
     this.specialistOptions = [
