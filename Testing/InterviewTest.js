@@ -1,5 +1,5 @@
 import readline from 'readline';
-import MedicalInterview from './Agents/Interview/interview.js';
+import MedicalInterview from '..//../Agents/Interview/interview.js';
 
 async function getUserInput(promptText) {
   const rl = readline.createInterface({
