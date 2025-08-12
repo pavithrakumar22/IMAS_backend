@@ -1,11 +1,10 @@
 name: 🚀 CD Deployment
 
-# Trigger the workflow on pushes and pull requests to the main branch
 on:
   push:
-    branches: [ "main","develop" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main","develop" ]
+    branches: [ "main", "develop" ]
 
 jobs:
   deploy:
@@ -13,6 +12,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - run: docker build . -t vivek17290/imas
-    - run: echo "${{secrets.VIVEK_DOCKERHUB_PASSWORD}}" | docker login -u ${{secrets.VIVEK_DOCKERHUB_USERNAME}} --password-stdin
-    - run: docker push vivek17290/imas:backend
+    
+    - name: Build Docker image
+      run: docker build . -t vivek17290/imas:backend
+      
+    - name: Login to Docker Hub
+      run: echo "${{ secrets.VIVEK_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.VIVEK_DOCKERHUB_USERNAME }}" --password-stdin
+      
+    - name: Push Docker image
+      run: docker push vivek17290/imas:backend
