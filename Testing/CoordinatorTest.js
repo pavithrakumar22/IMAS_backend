@@ -11,7 +11,7 @@ async function runRealApiTests() {
   console.log('Extracted Symptoms:', fractureCase.symptoms);
   console.log('Recommended Doctors:', fractureCase.doctors.map(d => d.id));
   console.log('Clinical Notes:', fractureCase.clinical_notes);
-  console.log('✅ Received valid response structure\n');
+  console.log('Received valid response structure\n');
 
   // Test 2: Cardiac Symptoms
   console.log('2. Testing cardiac symptoms:');
@@ -22,9 +22,9 @@ async function runRealApiTests() {
   console.log('Recommended Doctors:', cardiacCase.doctors.map(d => d.id));
   console.assert(
     cardiacCase.doctors.some(d => d.id === 'cardiologist'),
-    '❌ Expected cardiologist recommendation'
+    'Expected cardiologist recommendation'
   );
-  console.log('✅ Passed cardiac test\n');
+  console.log('Passed cardiac test\n');
 
   // Test 3: General Symptoms
   console.log('3. Testing general symptoms:');
@@ -35,9 +35,9 @@ async function runRealApiTests() {
   console.log('Recommended Doctors:', generalCase.doctors.map(d => d.id));
   console.assert(
     generalCase.doctors.some(d => d.id === 'general_physician'),
-    '❌ Expected general physician recommendation'
+    'Expected general physician recommendation'
   );
-  console.log('✅ Passed general case test\n');
+  console.log('Passed general case test\n');
 
   console.log('=== ALL REAL API TESTS COMPLETED ===');
 }

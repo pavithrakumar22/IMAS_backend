@@ -4,8 +4,96 @@ import FormData from 'form-data';
 import fs from 'fs';
 import multer from 'multer';
 import { complexityTool } from '../../Agents/complexity/complexity.js';
+import LOWPCPAgent from '../../Agents/Low/PCPAgent.js';
+import { loadEnv } from '../../loadEnv.js';
+import { highComplexityTool } from '../../Agents/High/high.js';
+import MCPAgent from '../../Agents/Medium/MCPAgent.js';
+import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
+
+loadEnv();
 
 const router = express.Router();
+
+// Unified response formatter
+function formatResponse(originalText, translatedText, complexity, diagnosis) {
+  return {
+    original: originalText || null,
+    translated: translatedText || null,
+    complexity: {
+      level: complexity?.complexity || "UNKNOWN",
+      reason: complexity?.reason || "No explanation provided"
+    },
+    diagnosis: diagnosis || {}
+  };
+}
+
+async function classifyAndDiagnose(translatedText) {
+  try {
+    const complexityResultJson = await complexityTool.invoke(translatedText);
+    let complexityResult;
+
+    try {
+      complexityResult = JSON.parse(complexityResultJson);
+    } catch (err) {
+      console.error("Failed to parse complexityTool response:", err);
+      complexityResult = {
+        complexity: "UNKNOWN",
+        reason: "Failed to parse LLM response",
+        rawResponse: complexityResultJson
+      };
+    }
+
+    let diagnosisResult = null;
+
+    if (complexityResult.complexity === "LOW") {
+      const apiKey = process.env.GEMINI_API_KEY;
+      const lowAgent = new LOWPCPAgent(apiKey);
+      try {
+        diagnosisResult = await lowAgent.generateHealthPlan(translatedText);
+      } catch (err) {
+        console.error("Failed to generate low complexity health plan:", err);
+        diagnosisResult = { error: "Low complexity plan generation failed" };
+      }
+
+    } else if (complexityResult.complexity === "MEDIUM") {
+      const apiKey = process.env.GEMINI_API_KEY;
+      const mediumAgent = new MCPAgent(apiKey);
+      try {
+        const patientInfo = await geminiCoordinator.processPatientQuery(translatedText);
+        const specialistResponses = await mediumAgent.getSpecialistResponses(
+          translatedText,
+          patientInfo.doctors.map(d => d.id)
+        );
+        diagnosisResult = {
+          symptoms: patientInfo.symptoms || [],
+          doctors: patientInfo.doctors || [],
+          specialistResponses: specialistResponses || []
+        };
+      } catch (err) {
+        console.error("Failed to generate medium complexity plan:", err);
+        diagnosisResult = { error: "Medium complexity plan generation failed" };
+      }
+
+    } else if (complexityResult.complexity === "HIGH") {
+      try {
+        const highResult = await highComplexityTool.invoke(translatedText);
+        diagnosisResult = JSON.parse(highResult);
+      } catch (err) {
+        console.error("Failed to parse highComplexityTool response:", err);
+        diagnosisResult = { error: "High complexity advice generation failed" };
+      }
+    }
+
+    return { complexity: complexityResult, diagnosis: diagnosisResult };
+
+  } catch (err) {
+    console.error("Error in classifyAndDiagnose:", err);
+    return {
+      complexity: { complexity: "ERROR", reason: err.message },
+      diagnosis: { error: "Internal processing error" }
+    };
+  }
+}
 
 router.post('/translate-and-classify', async (req, res) => {
   try {
@@ -15,42 +103,30 @@ router.post('/translate-and-classify', async (req, res) => {
       return res.status(400).json({ error: "Missing 'text', 'src', or 'tgt' in request body." });
     }
 
-    
     const formData = new URLSearchParams();
     formData.append('text', text);
     formData.append('src', src);
     formData.append('tgt', tgt);
 
     const flaskResponse = await axios.post('http://localhost:8000/ttt', formData.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
     const translatedText = flaskResponse.data.output;
+    const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
 
-    if (!translatedText) {
-      throw new Error("Translation service returned no output.");
-    }
-
-    const complexityResultJson = await complexityTool.invoke(translatedText);
-    const complexityResult = JSON.parse(complexityResultJson);
-
-    res.json({
-      original: text,
-      translated: translatedText,
-      complexity: complexityResult
-    });
+    res.json(formatResponse(text, translatedText, complexity, diagnosis));
 
   } catch (err) {
     console.error("Error in combined flow:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
+
 const upload = multer({ dest: 'uploads/' });
 
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
-  let audioFile; 
+  let audioFile;
   try {
     const { src, tgt } = req.body;
     audioFile = req.file;
@@ -73,32 +149,13 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
       throw new Error("STT + Translation service returned no output.");
     }
 
-    const complexityResultJson = await complexityTool.invoke(translatedText);
-    
-    let complexityResult;
-    try {
-    complexityResult = JSON.parse(complexityResultJson);
-    }catch (jsonErr) {
-      console.error("Failed to parse LLM response:", jsonErr);
-      console.error("Raw response from complexityTool:", complexityResultJson);
-
-    return res.status(500).json({
-      error: "Failed to parse LLM response",
-      rawResponse: complexityResultJson
-    });
-}
-
-    res.json({
-      translated: translatedText,
-      complexity: complexityResult
-    });
+    const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
+    res.json(formatResponse(null, translatedText, complexity, diagnosis));
 
   } catch (err) {
     console.error("Error in /stt-and-classify:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
-
   } finally {
-
     if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
@@ -111,8 +168,4 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
   }
 });
 
-
 export default router;
-
-
-
