@@ -75,6 +75,3 @@ IMPORTANT NOTES:
     return responses;
   }
 }
-
-const agent = new MedicalAssistantAgent(process.env.GEMINI_API_KEY);
-
