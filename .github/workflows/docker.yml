@@ -21,3 +21,12 @@ jobs:
       
     - name: Push Docker image
       run: docker push vivek17290/imas:backend
+    
+    - name: Build Docker image pavithra
+      run: docker build . -t pavithrakumarsahu/imas:backend
+      
+    - name: Login to Docker Hub pavithra
+      run: echo "${{ secrets.PAVITHRA_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.PAVITHRA_DOCKERHUB_USERNAME }}" --password-stdin
+      
+    - name: Push Docker image pavithra
+      run: docker push pavithrakumarsahu/imas:backend
