@@ -1,5 +1,10 @@
-import { geminiCoordinator } from "./Agents/Medium/geminiCoordinator.js";
+import { geminiCoordinator } from './geminiCoordinator.js';
+import { loadEnv } from '../../loadEnv.js';
 
+// Load environment variables (ensure your API key is set)
+loadEnv();
+
+// Real API test suite
 async function runRealApiTests() {
   console.log('=== Testing with REAL Gemini API ===\n');
 

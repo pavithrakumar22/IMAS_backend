@@ -1,4 +1,4 @@
-import { highComplexityTool } from "./Agents/High/high.js";
+import { highComplexityTool } from "..//../Agents/High/high.js";
 
 const inp = "Aids with Lung Cancer";
 
