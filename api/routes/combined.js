@@ -13,6 +13,20 @@ import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
 loadEnv();
 
 const router = express.Router();
+
+// Unified response formatter
+function formatResponse(originalText, translatedText, complexity, diagnosis) {
+  return {
+    original: originalText || null,
+    translated: translatedText || null,
+    complexity: {
+      level: complexity?.complexity || "UNKNOWN",
+      reason: complexity?.reason || "No explanation provided"
+    },
+    diagnosis: diagnosis || {}
+  };
+}
+
 async function classifyAndDiagnose(translatedText) {
   try {
     const complexityResultJson = await complexityTool.invoke(translatedText);
@@ -22,8 +36,9 @@ async function classifyAndDiagnose(translatedText) {
       complexityResult = JSON.parse(complexityResultJson);
     } catch (err) {
       console.error("Failed to parse complexityTool response:", err);
-      return {
-        error: "Failed to parse LLM response",
+      complexityResult = {
+        complexity: "UNKNOWN",
+        reason: "Failed to parse LLM response",
         rawResponse: complexityResultJson
       };
     }
@@ -36,46 +51,47 @@ async function classifyAndDiagnose(translatedText) {
       try {
         diagnosisResult = await lowAgent.generateHealthPlan(translatedText);
       } catch (err) {
-        console.error("Failed to parse LowComplexityTool response:", err);
-        diagnosisResult = { error: "Failed to generate low complexity health plan" };
+        console.error("Failed to generate low complexity health plan:", err);
+        diagnosisResult = { error: "Low complexity plan generation failed" };
       }
+
     } else if (complexityResult.complexity === "MEDIUM") {
-        const apiKey = process.env.GEMINI_API_KEY;
-        const mediumAgent = new MCPAgent(apiKey);
-        try {
-          const patientInfo = await geminiCoordinator.processPatientQuery(translatedText);
+      const apiKey = process.env.GEMINI_API_KEY;
+      const mediumAgent = new MCPAgent(apiKey);
+      try {
+        const patientInfo = await geminiCoordinator.processPatientQuery(translatedText);
+        const specialistResponses = await mediumAgent.getSpecialistResponses(
+          translatedText,
+          patientInfo.doctors.map(d => d.id)
+        );
+        diagnosisResult = {
+          symptoms: patientInfo.symptoms || [],
+          doctors: patientInfo.doctors || [],
+          specialistResponses: specialistResponses || []
+        };
+      } catch (err) {
+        console.error("Failed to generate medium complexity plan:", err);
+        diagnosisResult = { error: "Medium complexity plan generation failed" };
+      }
 
-          const specialistResponses = await mediumAgent.getSpecialistResponses(
-            translatedText,
-            patientInfo.doctors.map(d => d.id)
-          );
-
-          diagnosisResult = {
-            symptoms: patientInfo.symptoms,
-            doctors: patientInfo.doctors,
-            specialistResponses
-          };
-        } catch (err) {
-          console.error("Failed to generate medium complexity plan:", err);
-          diagnosisResult = { error: "Failed to generate medium complexity plan" };
-        }
-} else if (complexityResult.complexity === "HIGH") {
+    } else if (complexityResult.complexity === "HIGH") {
       try {
         const highResult = await highComplexityTool.invoke(translatedText);
         diagnosisResult = JSON.parse(highResult);
       } catch (err) {
         console.error("Failed to parse highComplexityTool response:", err);
-        diagnosisResult = { error: "Failed to generate high complexity advice" };
+        diagnosisResult = { error: "High complexity advice generation failed" };
       }
     }
 
-    return {
-      complexity: complexityResult,
-      diagonsis: diagnosisResult
-    };
+    return { complexity: complexityResult, diagnosis: diagnosisResult };
+
   } catch (err) {
     console.error("Error in classifyAndDiagnose:", err);
-    return { error: err.message || "Internal server error" };
+    return {
+      complexity: { complexity: "ERROR", reason: err.message },
+      diagnosis: { error: "Internal processing error" }
+    };
   }
 }
 
@@ -86,40 +102,31 @@ router.post('/translate-and-classify', async (req, res) => {
     if (!text || !src || !tgt) {
       return res.status(400).json({ error: "Missing 'text', 'src', or 'tgt' in request body." });
     }
-    
+
     const formData = new URLSearchParams();
     formData.append('text', text);
     formData.append('src', src);
     formData.append('tgt', tgt);
 
     const flaskResponse = await axios.post('http://localhost:8000/ttt', formData.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
     const translatedText = flaskResponse.data.output;
-
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
 
-    res.json({
-      original: text,
-      translated: translatedText,
-      complexity:complexity,
-      diagonis:diagnosis
-    });
+    res.json(formatResponse(text, translatedText, complexity, diagnosis));
 
-  }
-  catch (err) {
+  } catch (err) {
     console.error("Error in combined flow:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
 });
+
 const upload = multer({ dest: 'uploads/' });
 
-
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
-  let audioFile; 
+  let audioFile;
   try {
     const { src, tgt } = req.body;
     audioFile = req.file;
@@ -143,32 +150,22 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     }
 
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
+    res.json(formatResponse(null, translatedText, complexity, diagnosis));
 
-    res.json({
-      translated: translatedText,
-      complexity: complexity,
-      diagnosis:diagnosis
-    });
-
-  }
-  catch (err) {
+  } catch (err) {
     console.error("Error in /stt-and-classify:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
-
-  }
-  finally {
+  } finally {
     if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
           console.warn("Failed to delete uploaded file:", unlinkErr);
-        }
-        else {
+        } else {
           console.log("Uploaded file deleted:", audioFile.path);
         }
       });
     }
   }
 });
-
 
 export default router;
