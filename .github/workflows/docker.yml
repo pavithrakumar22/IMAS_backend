@@ -12,12 +12,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Build Docker image
-      run: docker build . -t vivek17290/imas:backend
-      
-    - name: Login to Docker Hub
+      run: docker build . -t vivek17290/imas:backend -t pavithrakumarsahu/imas:backend
+
+    - name: Login to Docker Hub (Vivek)
       run: echo "${{ secrets.VIVEK_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.VIVEK_DOCKERHUB_USERNAME }}" --password-stdin
-      
-    - name: Push Docker image
+
+    - name: Push Docker image (Vivek)
       run: docker push vivek17290/imas:backend
+
+    - name: Login to Docker Hub (Pavithra)
+      run: echo "${{ secrets.PAVITHRA_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.PAVITHRA_DOCKERHUB_USERNAME }}" --password-stdin
+
+    - name: Push Docker image (Pavithra)
+      run: docker push pavithrakumarsahu/imas:backend
