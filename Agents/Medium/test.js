@@ -1,25 +1,21 @@
-import { geminiCoordinator } from "./Agents/Medium/geminiCoordinator.js";
-import MedicalAssistantAgent from "./Agents/Medium/MCPAgent.js"; 
-import dotenv from "dotenv"
+import { geminiCoordinator } from './geminiCoordinator.js';
+import { loadEnv } from '../../loadEnv.js';
 
-dotenv.config();
+// Load environment variables (ensure your API key is set)
+loadEnv();
 
+// Real API test suite
 async function runRealApiTests() {
   console.log('=== Testing with REAL Gemini API ===\n');
-  const medicalAgent = new MedicalAssistantAgent(process.env.GEMINI_API_KEY);
 
+  // Test 1: Fracture + Fever Case
   console.log('1. Testing fracture with fever:');
   const fractureCase = await geminiCoordinator.processPatientQuery(
     "I have fever from 3 days and today I fractured my ankle"
   );
   console.log('Extracted Symptoms:', fractureCase.symptoms);
   console.log('Recommended Doctors:', fractureCase.doctors.map(d => d.id));
-  
-  const fractureResponses = await medicalAgent.getSpecialistResponses(
-    "I have fever from 3 days and today I fractured my ankle",
-    fractureCase.doctors.map(d => d.id)
-  );
-  console.log('Specialist Responses:', fractureResponses);
+  console.log('Clinical Notes:', fractureCase.clinical_notes);
   console.log('✅ Received valid response structure\n');
 
   // Test 2: Cardiac Symptoms
@@ -29,31 +25,19 @@ async function runRealApiTests() {
   );
   console.log('Extracted Symptoms:', cardiacCase.symptoms);
   console.log('Recommended Doctors:', cardiacCase.doctors.map(d => d.id));
-  
-  // Pass to MCPagent
-  const cardiacResponses = await medicalAgent.getSpecialistResponses(
-    "Severe chest pain radiating to left arm",
-    cardiacCase.doctors.map(d => d.id)
-  );
-  console.log('Specialist Responses:', cardiacResponses);
   console.assert(
     cardiacCase.doctors.some(d => d.id === 'cardiologist'),
     '❌ Expected cardiologist recommendation'
   );
   console.log('✅ Passed cardiac test\n');
 
+  // Test 3: General Symptoms
   console.log('3. Testing general symptoms:');
   const generalCase = await geminiCoordinator.processPatientQuery(
     "Just a common cold and mild headache"
   );
   console.log('Extracted Symptoms:', generalCase.symptoms);
   console.log('Recommended Doctors:', generalCase.doctors.map(d => d.id));
-  
-  const generalResponses = await medicalAgent.getSpecialistResponses(
-    "Just a common cold and mild headache",
-    generalCase.doctors.map(d => d.id)
-  );
-  console.log('Specialist Responses:', generalResponses);
   console.assert(
     generalCase.doctors.some(d => d.id === 'general_physician'),
     '❌ Expected general physician recommendation'
@@ -63,6 +47,7 @@ async function runRealApiTests() {
   console.log('=== ALL REAL API TESTS COMPLETED ===');
 }
 
+// Run tests with error handling
 runRealApiTests().catch(err => {
   console.error('Real API Test Failed:', err);
   process.exit(1);

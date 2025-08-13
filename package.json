@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^4.13.23",
     "@google/generative-ai": "^0.24.1",
     "@huggingface/inference": "^4.6.1",
     "@huggingface/transformers": "^3.7.0",
@@ -31,7 +32,7 @@
     "express": "^5.1.0",
     "fs": "^0.0.1-security",
     "http-server": "^14.1.1",
-    "mongoose": "^8.16.5",
+    "mongoose": "^8.17.1",
     "multer": "^2.0.2",
     "node-fetch": "^3.3.2",
     "pg": "^8.16.3",

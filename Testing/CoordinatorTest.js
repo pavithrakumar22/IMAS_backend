@@ -1,4 +1,4 @@
-import { geminiCoordinator } from "./Agents/Medium/geminiCoordinator.js";
+import { geminiCoordinator } from "..//../Agents/Medium/geminiCoordinator.js";
 
 async function runRealApiTests() {
   console.log('=== Testing with REAL Gemini API ===\n');
