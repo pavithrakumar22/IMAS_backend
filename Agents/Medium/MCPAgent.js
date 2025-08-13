@@ -78,10 +78,3 @@ IMPORTANT NOTES:
 
 const agent = new MedicalAssistantAgent(process.env.GEMINI_API_KEY);
 
-(async () => {
-  const response = await agent.getSpecialistResponses(
-    "I have heavy fever for 2 days with headache and body pains",
-    ["General Physician", "Infectious Disease Specialist"]
-  );
-  console.log(response);
-})();
