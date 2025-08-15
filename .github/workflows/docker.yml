@@ -34,12 +34,6 @@ jobs:
     - name: Push Docker image (Rishi)
       run: docker push rishithreddy1942/imas:backend
 
-    - name: Login to Docker Hub (Adi)
-      run: echo "${{ secrets.ADI_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.ADI_DOCKERHUB_USERNAME }}" --password-stdin
-
-    - name: Push Docker image (Adi)
-      run: docker push aswathreddy/imas:backend
-
     - name: Login to Docker Hub (Appu)
       run: echo "${{ secrets.APPU_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.APPU_DOCKERHUB_USERNAME }}" --password-stdin
 
