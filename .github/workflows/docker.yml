@@ -14,7 +14,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Build Docker image
-      run: docker build . -t vivek17290/imas:backend -t pavithrakumarsahu/imas:backend -t rishithreddy1942/imas:backend
+      run: docker build . -t vivek17290/imas:backend -t pavithrakumarsahu/imas:backend -t rishithreddy1942/imas:backend -t aswathreddy/imas:backend -t appureddy/imas:backend
 
     - name: Login to Docker Hub (Vivek)
       run: echo "${{ secrets.VIVEK_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.VIVEK_DOCKERHUB_USERNAME }}" --password-stdin
@@ -33,3 +33,15 @@ jobs:
 
     - name: Push Docker image (Rishi)
       run: docker push rishithreddy1942/imas:backend
+
+    - name: Login to Docker Hub (Adi)
+      run: echo "${{ secrets.ADI_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.ADI_DOCKERHUB_USERNAME }}" --password-stdin
+
+    - name: Push Docker image (Adi)
+      run: docker push aswathreddy/imas:backend
+
+    - name: Login to Docker Hub (Appu)
+      run: echo "${{ secrets.APPU_DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.APPU_DOCKERHUB_USERNAME }}" --password-stdin
+
+    - name: Push Docker image (Appu)
+      run: docker push appureddy/imas:backend
