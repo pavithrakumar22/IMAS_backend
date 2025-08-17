@@ -68,20 +68,10 @@ IMPORTANT NOTES:
       const result = await this.model.generateContent({
         contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
       });
-
-      responses[specialistType] = result.response.text();
+      const cleantext = result.response.text().replace(/json\n?/, '').replace(/$/, '').trim();
+      responses[specialistType] = cleantext
     }
 
     return responses;
   }
 }
-
-const agent = new MedicalAssistantAgent(process.env.GEMINI_API_KEY);
-
-(async () => {
-  const response = await agent.getSpecialistResponses(
-    "I have heavy fever for 2 days with headache and body pains",
-    ["General Physician", "Infectious Disease Specialist"]
-  );
-  console.log(response);
-})();

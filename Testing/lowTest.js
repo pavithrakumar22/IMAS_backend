@@ -13,7 +13,7 @@ async function run() {
   const agent = new LOWPCPAgent(apiKey);
 
   const symptoms = "Mild fever and sore throat for 2 days";
-  console.log("🔍 Generating health plan for symptoms:", symptoms);
+  console.log("Generating health plan for symptoms:", symptoms);
 
   const response = await agent.generateHealthPlan(symptoms);
   console.log("Generated Health Plan:");
