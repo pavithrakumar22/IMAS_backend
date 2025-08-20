@@ -76,6 +76,6 @@ def ttt_translate():
 
 
 if __name__ == '__main__':
-    app.run(port=8000, threaded=False, debug=True)
+    app.run(port=8000, threaded=False)
 
 # set TF_ENABLE_ONEDNN_OPTS=0
