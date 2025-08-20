@@ -11,20 +11,25 @@ const llm = new ChatGoogleGenerativeAI({
 });
 
 // Helper function to extract JSON from Markdown response
-const extractJsonFromMarkdown = (markdown) => {
-  // Handle cases where response is already plain JSON
-  if (typeof markdown === 'object') return markdown;
-  
-  const stringContent = typeof markdown === 'string' ? markdown : JSON.stringify(markdown);
-  
-  // Try to extract JSON from markdown code block
-  const jsonMatch = stringContent.match(/```(?:json)?\n([\s\S]*?)\n```/);
-  if (jsonMatch && jsonMatch[1]) {
-    return jsonMatch[1];
+const extractJsonFromMarkdown = (content) => {
+  if (!content) return "{}";
+
+  // If it's already an object, just stringify it
+  if (typeof content === "object") return JSON.stringify(content);
+
+  let str = String(content).trim();
+
+  // Remove any markdown fences like ```json or ``` 
+  str = str.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+
+  // Try to find the first and last curly braces for JSON
+  const firstBrace = str.indexOf("{");
+  const lastBrace = str.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1) {
+    str = str.substring(firstBrace, lastBrace + 1);
   }
-  
-  // If no markdown markers found, try parsing the whole content
-  return stringContent;
+
+  return str.trim();
 };
 
 // Define the complexity tool
