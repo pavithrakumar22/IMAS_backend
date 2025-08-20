@@ -14,7 +14,6 @@ loadEnv();
 
 const router = express.Router();
 
-// Unified response formatter
 function formatResponse(originalText, translatedText, complexity, diagnosis) {
   return {
     original: originalText || null,
