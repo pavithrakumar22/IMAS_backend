@@ -66,9 +66,25 @@ const highComplexityTool = new DynamicTool({
 
     const response = await llm.invoke(prompt);
 
-    let result = response.content.trim();
+    let content;
+    if (typeof response.content === 'string') {
+        content = response.content;
+    } 
+    else if (response.content && typeof response.content === 'object') {
+        content = JSON.stringify(response.content);
+    } 
+    else if (response.text) {
+        content = response.text;
+    } 
+    else {
+        content = String(response);
+    }
+
+    let result = content.trim();
 
     result = result.replace(/```json\s*([\s\S]*?)\s*```/g, '$1');
+    result = result.replace(/^json\s*/i, ''); // Remove leading "json" keyword
+    result = result.trim();
 
     let parsedResult;
     try {
