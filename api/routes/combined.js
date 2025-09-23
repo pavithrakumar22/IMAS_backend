@@ -37,7 +37,8 @@ async function classifyAndDiagnose(translatedText) {
 
     try {
       complexityResult = JSON.parse(complexityResultJson);
-    } catch (err) {
+    } 
+    catch (err) {
       console.error("Failed to parse complexityTool response:", err);
       complexityResult = {
         complexity: "UNKNOWN",
@@ -53,12 +54,14 @@ async function classifyAndDiagnose(translatedText) {
       const lowAgent = new LOWPCPAgent(apiKey);
       try {
         diagnosisResult = await lowAgent.generateHealthPlan(translatedText);
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to generate low complexity health plan:", err);
         diagnosisResult = { error: "Low complexity plan generation failed" };
       }
 
-    } else if (complexityResult.complexity === "MEDIUM") {
+    } 
+    else if (complexityResult.complexity === "MEDIUM") {
       const apiKey = process.env.GEMINI_API_KEY;
       const mediumAgent = new MCPAgent(apiKey);
       try {
@@ -72,16 +75,19 @@ async function classifyAndDiagnose(translatedText) {
           doctors: patientInfo.doctors || [],
           specialistResponses: specialistResponses || []
         };
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to generate medium complexity plan:", err);
         diagnosisResult = { error: "Medium complexity plan generation failed" };
       }
 
-    } else if (complexityResult.complexity === "HIGH") {
+    } 
+    else if (complexityResult.complexity === "HIGH") {
       try {
         const highResult = await highComplexityTool.invoke(translatedText);
         diagnosisResult = JSON.parse(highResult);
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to parse highComplexityTool response:", err);
         diagnosisResult = { error: "High complexity advice generation failed" };
       }
@@ -89,7 +95,8 @@ async function classifyAndDiagnose(translatedText) {
 
     return { complexity: complexityResult, diagnosis: diagnosisResult };
 
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in classifyAndDiagnose:", err);
     return {
       complexity: { complexity: "ERROR", reason: err.message },
@@ -106,7 +113,8 @@ async function simplifyText(text, audience = "general") {
     console.log('Simplify response:', JSON.stringify(result, null, 2));
     
     return result;
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in simplifyText:", err);
     return {
       success: false,
@@ -144,7 +152,8 @@ router.post('/translate-and-classify', async (req, res) => {
 
     res.json(formatResponse(text, translatedText, complexity, diagnosis, simplifiedResult));
 
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in combined flow:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
@@ -187,10 +196,12 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
 
     res.json(formatResponse(null, translatedText, complexity, diagnosis, simplifiedResult));
 
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in /stt-and-classify:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
-  } finally {
+  } 
+  finally {
     if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
@@ -220,7 +231,8 @@ router.post('/simplify', async (req, res) => {
         simplified: result.simplified,
         audience: audience
       });
-    } else {
+    } 
+    else {
       res.status(500).json({
         success: false,
         error: result.error,
@@ -228,7 +240,8 @@ router.post('/simplify', async (req, res) => {
       });
     }
 
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in /simplify:", err);
     res.status(500).json({ 
       success: false, 
