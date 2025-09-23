@@ -5,15 +5,10 @@ import User from '../models/User.js';
 const router = express.Router();
 const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
-// Sync user data from Clerk to MongoDB
 router.post('/sync-user', async (req, res) => {
   try {
     const { userId } = req.body;
-    
-    // Get user from Clerk
     const clerkUser = await clerk.users.getUser(userId);
-    
-    // Create or update user in MongoDB
     const user = await User.findOneAndUpdate(
       { clerkUserId: userId },
       {
@@ -32,7 +27,6 @@ router.post('/sync-user', async (req, res) => {
   }
 });
 
-// Get user details
 router.get('/user/:userId', async (req, res) => {
   try {
     const user = await User.findOne({ clerkUserId: req.params.userId });
@@ -46,7 +40,6 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// Logout endpoint
 router.post('/logout', (req, res) => {
   res.status(200).json({ message: 'Logout successful' });
 });

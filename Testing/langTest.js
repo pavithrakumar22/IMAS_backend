@@ -4,7 +4,7 @@ import { mainGraph } from "../api/routes/langgraph.js";
 
 async function runTest() {
   const iterator = await mainGraph.stream(
-    { input: "Patient has fever from 2 days", src: "en", tgt: "en" },
+    { input: "Patient has fever from 2 days", src: "eng", tgt: "eng" },
     { asState: true }
   );
 
