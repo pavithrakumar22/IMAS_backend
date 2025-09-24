@@ -49,6 +49,9 @@ async function classifyAndDiagnose(translatedText) {
 
     let diagnosisResult = null;
 
+    console.log("Classified problem as: " + complexityResult.complexity);
+    console.log("Generating Plan...");
+
     if (complexityResult.complexity === "LOW") {
       const apiKey = process.env.GEMINI_API_KEY;
       const lowAgent = new LOWPCPAgent(apiKey);
@@ -108,10 +111,8 @@ async function classifyAndDiagnose(translatedText) {
 
 async function simplifyText(text, audience = "general") {
   try {
-    
-    const result = await simplifier.simplifyResponse(text, audience);   
-    console.log('Simplify response:', JSON.stringify(result, null, 2));
-    
+    const result = await simplifier.simplifyResponse(text, audience);
+    console.log("Simplified response successfully...");
     return result;
   } 
   catch (err) {
@@ -145,9 +146,9 @@ router.post('/translate-and-classify', async (req, res) => {
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
 
     let simplifiedResult = null;
-    if (simplify) {
+    if (simplify && complexity!="LOW") {
       const targetAudience = audience || "general";
-      simplifiedResult = await simplifyText(translatedText, targetAudience);
+      simplifiedResult = await simplifyText(JSON.stringify(diagnosis), targetAudience);
     }
 
     res.json(formatResponse(text, translatedText, complexity, diagnosis, simplifiedResult));
@@ -191,7 +192,7 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     let simplifiedResult = null;
     if (simplify) {
       const targetAudience = audience || "general";
-      simplifiedResult = await simplifyText(translatedText, targetAudience);
+      simplifiedResult = await simplifyText(JSON.stringify(diagnosis), targetAudience);
     }
 
     res.json(formatResponse(null, translatedText, complexity, diagnosis, simplifiedResult));

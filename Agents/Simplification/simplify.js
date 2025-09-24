@@ -62,7 +62,7 @@ class SimplifyAgent {
 
         ${instruction}.
 
-        Original medical content:
+        Original medical diagnosis:
         "${complexResponse}"
 
         Please provide a simplified version that:

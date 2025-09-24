@@ -102,10 +102,8 @@ Return ONLY this JSON format (no markdown, no extra text):
       let result;
       try {
         const rawContent = response.content;
-        console.log("Raw LLM response:", rawContent);
         
         const jsonString = extractJsonFromMarkdown(rawContent);
-        console.log("Extracted JSON string:", jsonString);
         
         const parsed = JSON.parse(jsonString);
         result = validateComplexityResponse(parsed);
