@@ -95,7 +95,7 @@ async function classifyAndDiagnose(translatedText) {
         diagnosisResult = { error: "High complexity advice generation failed" };
       }
     }
-
+    console.log("Plan Generated...");
     return { complexity: complexityResult, diagnosis: diagnosisResult };
 
   } 
@@ -144,13 +144,12 @@ router.post('/translate-and-classify', async (req, res) => {
 
     const translatedText = flaskResponse.data.output;
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
-
     let simplifiedResult = null;
-    if (simplify && complexity!="LOW") {
+    if (simplify && complexity.complexity!="LOW") {
+      console.log("No need of simplification (Classified as LOW).");
       const targetAudience = audience || "general";
       simplifiedResult = await simplifyText(JSON.stringify(diagnosis), targetAudience);
     }
-
     res.json(formatResponse(text, translatedText, complexity, diagnosis, simplifiedResult));
 
   } 
