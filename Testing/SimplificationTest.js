@@ -2,7 +2,7 @@ import SimplifyAgent from '../Agents/Simplification/simplify.js';
 
 
 async function testSimplification() {
-    console.log('🚀 Starting Simplification Agent Test...\n');
+    console.log('Starting Simplification Agent Test...\n');
     
     const simplifier = new SimplifyAgent();
     
@@ -14,14 +14,14 @@ async function testSimplification() {
     symptomatic management with antipyretics and adequate hydration.
     `;
 
-    console.log("🏥 Original medical text:");
+    console.log("Original medical text:");
     console.log(complexMedicalText);
     console.log('---\n');
     
     const audiences = ["general", "technical", "executive", "student"];
     
     for (const audience of audiences) {
-        console.log(`🎯 Testing ${audience.toUpperCase()} audience...`);
+        console.log(`Testing ${audience.toUpperCase()} audience...`);
         const result = await simplifier.simplifyResponse(complexMedicalText, audience);
         
         if (result.success) {

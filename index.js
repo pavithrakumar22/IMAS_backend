@@ -4,8 +4,12 @@ import cors from 'cors';
 import combinedRoutes from './api/routes/combined.js';
 import mongoose from 'mongoose';
 import authRoutes from './api/routes/authRoutes.js';
+<<<<<<< HEAD
 import interviewRoutes from "./api/routes/interview.js"
 // import handleUser from "./api/routes/handleUser.js"
+=======
+import langgraphroutes from './api/routes/langgraphroutes.js';
+>>>>>>> 2a08880c8db3c8811019a3f6d8bd02da89710fc7
 import { spawn } from 'child_process';
 
 dotenv.config();
@@ -29,8 +33,12 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/combined', combinedRoutes);
+<<<<<<< HEAD
 app.use('/api/interview', interviewRoutes);
 // app.use("/api/handle-user", handleUser);
+=======
+app.use('/api/lang', langgraphroutes);
+>>>>>>> 2a08880c8db3c8811019a3f6d8bd02da89710fc7
 
 app.get('/health', (req, res) => res.json({ status: "Node is alive" }));
 

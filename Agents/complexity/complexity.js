@@ -3,42 +3,68 @@ import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { loadEnv } from '../../loadEnv.js';
 loadEnv();
 
-// Initialize the LLM
 const llm = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
   maxOutputTokens: 2048,
   apiKey: process.env.GOOGLE_API_KEY || "AIzaSyDr2z7gIVnovRtOOkya-b0BZsadhOI4i3U"
 });
 
-// Helper function to extract JSON from Markdown response
 const extractJsonFromMarkdown = (content) => {
   if (!content) return "{}";
 
-  // If it's already an object, just stringify it
   if (typeof content === "object") return JSON.stringify(content);
 
   let str = String(content).trim();
-
-  // Remove any markdown fences like ```json or ``` 
+  
   str = str.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-
-  // Try to find the first and last curly braces for JSON
-  const firstBrace = str.indexOf("{");
-  const lastBrace = str.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    str = str.substring(firstBrace, lastBrace + 1);
+  
+  const jsonStart = str.indexOf("{");
+  const jsonEnd = str.lastIndexOf("}");
+  
+  if (jsonStart === -1 || jsonEnd === -1) {
+    return "{}";
   }
+  
+  str = str.substring(jsonStart, jsonEnd + 1);
+  
+  str = str
+    .replace(/,(\s*[}\]])/g, '$1')
+    .replace(/([{,]\s*)(\w+):/g, '$1"$2":')
+    .replace(/:\s*'([^']*?)'/g, ': "$1"')
+    .replace(/\\n/g, '\\\\n')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/\t/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 
-  return str.trim();
+  return str;
 };
 
-// Define the complexity tool
+const validateComplexityResponse = (result) => {
+  if (!result || typeof result !== 'object') {
+    throw new Error('Invalid response structure');
+  }
+  
+  if (!result.complexity || !['LOW', 'MEDIUM', 'HIGH'].includes(result.complexity)) {
+    throw new Error('Invalid or missing complexity level');
+  }
+  
+  return {
+    complexity: result.complexity,
+    reason: String(result.reason || "Classification completed").replace(/["\n\r]/g, ' ').trim(),
+    key_factors: Array.isArray(result.key_factors) 
+      ? result.key_factors.map(f => String(f).replace(/["\n\r]/g, ' ').trim()) 
+      : ["Treatment complexity assessment"],
+    suggested_action: String(result.suggested_action || "Consult appropriate healthcare provider").replace(/["\n\r]/g, ' ').trim()
+  };
+};
+
 const complexityTool = new DynamicTool({
   name: "complexity_classifier",
   description: "Classifies medical queries into low, medium, or high complexity based on treatment requirements and CHW capabilities",
   func: async (input) => {
     try {
-      // Robust input parsing
       let query;
       if (typeof input === 'string') {
         try {
@@ -59,87 +85,59 @@ const complexityTool = new DynamicTool({
         throw new Error("Empty medical query provided");
       }
 
-      const prompt = `Analyze the following medical query and classify its complexity level as either LOW, MEDIUM, or HIGH based on treatment requirements and what a Community Health Worker (CHW) can manage:
+      const prompt = `You are a medical complexity classifier. Analyze the medical query and return ONLY a valid JSON response.
 
 CLASSIFICATION CRITERIA:
-1. LOW: Conditions that can be managed with:
-   - Basic over-the-counter medications (e.g., pain relievers, antacids)
-   - Simple home remedies or dietary changes
-   - No specialized diagnosis or monitoring required
-   - Can be safely treated by a Community Health Worker (CHW)
-   Examples: Common cold, mild headache, minor indigestion, simple diarrhea
+- LOW: Basic conditions treatable by CHW with OTC medications, home remedies
+- MEDIUM: Conditions requiring prescription meds, basic tests, referral to nurse/GP  
+- HIGH: Complex conditions needing advanced care, hospitalization, specialists
 
-2. MEDIUM: Conditions that require:
-   - Prescription medications (oral)
-   - Basic diagnostic tests (e.g., rapid tests, basic lab work)
-   - Simple procedures like injections or wound dressings
-   - Short-term monitoring
-   - May require referral to a nurse or general practitioner
-   Examples: Urinary tract infection, moderate fever, uncomplicated skin infection
+QUERY: "${query}"
 
-3. HIGH: Conditions that:
-   - Require advanced medical intervention (IV medications, surgery)
-   - Need complex diagnostics (imaging, specialized lab tests)
-   - Involve potentially life-threatening symptoms
-   - Require hospitalization or specialist care
-   - Cannot be managed by a CHW
-   Examples: Chest pain, severe trauma, difficulty breathing, neurological symptoms
-
-ADDITIONAL FACTORS TO CONSIDER:
-- Multiple symptoms increase complexity level
-- Chronic conditions may increase complexity
-- Vulnerable populations (elderly, infants, pregnant) may increase complexity
-
-MEDICAL QUERY TO CLASSIFY:
-"${query}"
-
-Provide your response in STRICT JSON format with this structure:
-{
-  "complexity": "LOW|MEDIUM|HIGH",
-  "reason": "Explanation focusing on treatment requirements and CHW capabilities",
-  "key_factors": ["list", "of", "specific", "treatment", "factors"],
-  "suggested_action": "Recommended course of action based on complexity level"
-}
-
-Important:
-- Return ONLY the raw JSON without any additional text
-- Base classification primarily on treatment complexity
-- Assume resources are limited (CHW setting)`;
+Return ONLY this JSON format (no markdown, no extra text):
+{"complexity":"LOW|MEDIUM|HIGH","reason":"brief explanation","key_factors":["factor1","factor2"],"suggested_action":"recommended action"}`;
 
       const response = await llm.invoke(prompt);
       
       let result;
       try {
         const rawContent = response.content;
-        const jsonString = extractJsonFromMarkdown(rawContent);
-        result = JSON.parse(jsonString);
+        console.log("Raw LLM response:", rawContent);
         
-        // Validate the response structure
-        if (!result.complexity || !['LOW', 'MEDIUM', 'HIGH'].includes(result.complexity)) {
-          throw new Error("Invalid complexity value in response");
+        const jsonString = extractJsonFromMarkdown(rawContent);
+        console.log("Extracted JSON string:", jsonString);
+        
+        const parsed = JSON.parse(jsonString);
+        result = validateComplexityResponse(parsed);
+        
+      } catch (parseError) {
+        console.warn("JSON parsing failed:", parseError);
+        console.warn("Raw response was:", response.content);
+        
+        const rawText = String(response.content).toUpperCase();
+        let fallbackComplexity = "LOW";
+        
+        if (rawText.includes("HIGH")) {
+          fallbackComplexity = "HIGH";
+        } else if (rawText.includes("MEDIUM")) {
+          fallbackComplexity = "MEDIUM";
         }
         
-        // Ensure all required fields exist
-        result.reason = result.reason || "No reason provided";
-        result.key_factors = Array.isArray(result.key_factors) ? result.key_factors : ["Unspecified factors"];
-        result.suggested_action = result.suggested_action || "No suggested action provided";
-        
-      } catch (e) {
-        console.warn("Failed to parse LLM response:", e);
         result = {
-          complexity: "LOW",
-          reason: "Automatic classification failed - defaulting to low complexity",
-          key_factors: ["Classification error"],
-          suggested_action: "Monitor symptoms and consult a CHW for reassessment"
+          complexity: fallbackComplexity,
+          reason: "Automatic classification due to parsing error",
+          key_factors: ["System parsing issue"],
+          suggested_action: "Seek appropriate healthcare consultation"
         };
       }
       
       return JSON.stringify(result);
+      
     } catch (error) {
       console.error("Error in complexity classification:", error);
       return JSON.stringify({
         complexity: "LOW",
-        reason: "Error occurred during classification: " + error.message,
+        reason: "Error occurred during classification",
         key_factors: ["System error"],
         suggested_action: "Seek CHW assistance for proper evaluation"
       });

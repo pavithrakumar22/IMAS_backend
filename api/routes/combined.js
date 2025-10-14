@@ -9,13 +9,15 @@ import { loadEnv } from '../../loadEnv.js';
 import { highComplexityTool } from '../../Agents/High/high.js';
 import MCPAgent from '../../Agents/Medium/MCPAgent.js';
 import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
+import SimplifyAgent from '../../Agents/Simplification/simplify.js';
 
 loadEnv();
 
 const router = express.Router();
 
-// Unified response formatter
-function formatResponse(originalText, translatedText, complexity, diagnosis) {
+const simplifier = new SimplifyAgent();
+
+function formatResponse(originalText, translatedText, complexity, diagnosis, simplified = null) {
   return {
     original: originalText || null,
     translated: translatedText || null,
@@ -23,7 +25,8 @@ function formatResponse(originalText, translatedText, complexity, diagnosis) {
       level: complexity?.complexity || "UNKNOWN",
       reason: complexity?.reason || "No explanation provided"
     },
-    diagnosis: diagnosis || {}
+    diagnosis: diagnosis || {},
+    simplified: simplified || null
   };
 }
 
@@ -34,7 +37,8 @@ async function classifyAndDiagnose(translatedText) {
 
     try {
       complexityResult = JSON.parse(complexityResultJson);
-    } catch (err) {
+    } 
+    catch (err) {
       console.error("Failed to parse complexityTool response:", err);
       complexityResult = {
         complexity: "UNKNOWN",
@@ -50,12 +54,14 @@ async function classifyAndDiagnose(translatedText) {
       const lowAgent = new LOWPCPAgent(apiKey);
       try {
         diagnosisResult = await lowAgent.generateHealthPlan(translatedText);
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to generate low complexity health plan:", err);
         diagnosisResult = { error: "Low complexity plan generation failed" };
       }
 
-    } else if (complexityResult.complexity === "MEDIUM") {
+    } 
+    else if (complexityResult.complexity === "MEDIUM") {
       const apiKey = process.env.GEMINI_API_KEY;
       const mediumAgent = new MCPAgent(apiKey);
       try {
@@ -69,16 +75,19 @@ async function classifyAndDiagnose(translatedText) {
           doctors: patientInfo.doctors || [],
           specialistResponses: specialistResponses || []
         };
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to generate medium complexity plan:", err);
         diagnosisResult = { error: "Medium complexity plan generation failed" };
       }
 
-    } else if (complexityResult.complexity === "HIGH") {
+    } 
+    else if (complexityResult.complexity === "HIGH") {
       try {
         const highResult = await highComplexityTool.invoke(translatedText);
         diagnosisResult = JSON.parse(highResult);
-      } catch (err) {
+      } 
+      catch (err) {
         console.error("Failed to parse highComplexityTool response:", err);
         diagnosisResult = { error: "High complexity advice generation failed" };
       }
@@ -86,7 +95,8 @@ async function classifyAndDiagnose(translatedText) {
 
     return { complexity: complexityResult, diagnosis: diagnosisResult };
 
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error in classifyAndDiagnose:", err);
     return {
       complexity: { complexity: "ERROR", reason: err.message },
@@ -95,9 +105,28 @@ async function classifyAndDiagnose(translatedText) {
   }
 }
 
+
+async function simplifyText(text, audience = "general") {
+  try {
+    
+    const result = await simplifier.simplifyResponse(text, audience);   
+    console.log('Simplify response:', JSON.stringify(result, null, 2));
+    
+    return result;
+  } 
+  catch (err) {
+    console.error("Error in simplifyText:", err);
+    return {
+      success: false,
+      error: err.message,
+      simplified: null
+    };
+  }
+}
+
 router.post('/translate-and-classify', async (req, res) => {
   try {
-    const { text, src, tgt } = req.body;
+    const { text, src, tgt, simplify, audience } = req.body;
 
     if (!text || !src || !tgt) {
       return res.status(400).json({ error: "Missing 'text', 'src', or 'tgt' in request body." });
@@ -115,9 +144,16 @@ router.post('/translate-and-classify', async (req, res) => {
     const translatedText = flaskResponse.data.output;
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
 
-    res.json(formatResponse(text, translatedText, complexity, diagnosis));
+    let simplifiedResult = null;
+    if (simplify) {
+      const targetAudience = audience || "general";
+      simplifiedResult = await simplifyText(translatedText, targetAudience);
+    }
 
-  } catch (err) {
+    res.json(formatResponse(text, translatedText, complexity, diagnosis, simplifiedResult));
+
+  } 
+  catch (err) {
     console.error("Error in combined flow:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
   }
@@ -128,7 +164,7 @@ const upload = multer({ dest: 'uploads/' });
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
   let audioFile;
   try {
-    const { src, tgt } = req.body;
+    const { src, tgt, simplify, audience } = req.body;
     audioFile = req.file;
 
     if (!audioFile || !src || !tgt) {
@@ -150,12 +186,22 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     }
 
     const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
-    res.json(formatResponse(null, translatedText, complexity, diagnosis));
+    
 
-  } catch (err) {
+    let simplifiedResult = null;
+    if (simplify) {
+      const targetAudience = audience || "general";
+      simplifiedResult = await simplifyText(translatedText, targetAudience);
+    }
+
+    res.json(formatResponse(null, translatedText, complexity, diagnosis, simplifiedResult));
+
+  } 
+  catch (err) {
     console.error("Error in /stt-and-classify:", err);
     res.status(500).json({ error: err.message || "Internal server error" });
-  } finally {
+  } 
+  finally {
     if (audioFile?.path) {
       fs.unlink(audioFile.path, (unlinkErr) => {
         if (unlinkErr) {
@@ -165,6 +211,42 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
         }
       });
     }
+  }
+});
+
+router.post('/simplify', async (req, res) => {
+  try {
+    const { text, audience = "general" } = req.body;
+
+    if (!text) {
+      return res.status(400).json({ error: "Missing 'text' in request body." });
+    }
+
+    const result = await simplifyText(text, audience);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        original: text,
+        simplified: result.simplified,
+        audience: audience
+      });
+    } 
+    else {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        original: text
+      });
+    }
+
+  } 
+  catch (err) {
+    console.error("Error in /simplify:", err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message || "Internal server error" 
+    });
   }
 });
 
