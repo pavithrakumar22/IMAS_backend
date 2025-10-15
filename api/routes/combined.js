@@ -10,6 +10,7 @@ import { highComplexityTool } from '../../Agents/High/high.js';
 import MCPAgent from '../../Agents/Medium/MCPAgent.js';
 import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
 import SimplifyAgent from '../../Agents/Simplification/simplify.js';
+import emrRoutes from './emrRoutes.js';
 
 loadEnv();
 
@@ -160,6 +161,8 @@ router.post('/translate-and-classify', async (req, res) => {
 });
 
 const upload = multer({ dest: 'uploads/' });
+
+router.use('/api/emr',emrRoutes);
 
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
   let audioFile;

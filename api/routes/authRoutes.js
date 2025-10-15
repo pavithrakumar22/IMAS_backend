@@ -7,7 +7,7 @@ const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
 router.post('/sync-user', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, emr } = req.body;
     const clerkUser = await clerk.users.getUser(userId);
     const user = await User.findOneAndUpdate(
       { clerkUserId: userId },
@@ -15,11 +15,12 @@ router.post('/sync-user', async (req, res) => {
         email: clerkUser.emailAddresses[0].emailAddress,
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,
-        lastSignInAt: clerkUser.lastSignInAt
+        lastSignInAt: clerkUser.lastSignInAt,
+        ...(emr && { emr })
       },
       { upsert: true, new: true }
     );
-    
+
     res.status(200).json(user);
   } catch (error) {
     console.error('Error syncing user:', error);
