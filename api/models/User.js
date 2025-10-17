@@ -65,13 +65,11 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
-  // Combined name for display
   displayName: {
     type: String,
     default: null
   },
 
-  // Medical Professional Specific Fields
   role: {
     type: String,
     enum: ['RMP', 'CHW', 'Admin'],
@@ -86,7 +84,6 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
-  // Practice Statistics
   totalPatients: {
     type: Number,
     default: 0
@@ -100,13 +97,11 @@ const userSchema = new mongoose.Schema({
     default: 0
   },
 
-  // Patients treated by this healthcare worker
   patients: {
     type: [patientSchema],
     default: []
   },
 
-  // Timestamp
   createdAt: {
     type: Date,
     default: Date.now
