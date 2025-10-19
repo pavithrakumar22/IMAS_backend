@@ -156,10 +156,8 @@ router.post('/translate-and-classify', async (req, res) => {
 
     let result;
     if (simplify) {
-      // Process through SimplifyAgent for all complexity levels
       console.log('🔍 Starting simplification process...');
       
-      // FIX: Pass the data in the correct structure that SimplifyAgent expects
       const medicalData = {
         original: text,
         translated: translatedText,
@@ -171,7 +169,6 @@ router.post('/translate-and-classify', async (req, res) => {
       
       console.log('✅ Simplification completed');
     } else {
-      // Return basic response without simplification
       result = {
         success: true,
         original: text,

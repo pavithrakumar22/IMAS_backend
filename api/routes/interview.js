@@ -3,10 +3,8 @@ import MedicalInterview from '../../Agents/Interview/interview.js';
 
 const router = express.Router();
 
-// Store active interviews
 const activeInterviews = new Map();
 
-// Helper to get or create interview session
 function getInterviewSession(sessionId) {
   if (!activeInterviews.has(sessionId)) {
     activeInterviews.set(sessionId, new MedicalInterview());
@@ -14,14 +12,12 @@ function getInterviewSession(sessionId) {
   return activeInterviews.get(sessionId);
 }
 
-// GET /api/interview/questions - Get all questions at once
 router.get('/questions', async (req, res) => {
   try {
     const { sessionId = `session_${Date.now()}` } = req.query;
     
     const interview = getInterviewSession(sessionId);
     
-    // Generate 3 questions with different contexts
     const questions = [];
     const contexts = [
       'fever and body ache in a rural village setting',
@@ -39,7 +35,6 @@ router.get('/questions', async (req, res) => {
       'supporting patients with suspected dengue'
     ];
 
-    // Select 3 unique random contexts
     const selectedContexts = [...contexts]
       .sort(() => 0.5 - Math.random())
       .slice(0, 3);
@@ -69,7 +64,6 @@ router.get('/questions', async (req, res) => {
   }
 });
 
-// POST /api/interview/evaluate - Submit all answers and get evaluation
 router.post('/evaluate', async (req, res) => {
   try {
     const { sessionId, answers } = req.body;
@@ -96,7 +90,6 @@ router.post('/evaluate', async (req, res) => {
       });
     }
 
-    // Evaluate all answers
     const evaluations = [];
     for (let i = 0; i < answers.length; i++) {
       interview.currentIndex = i;
@@ -109,11 +102,9 @@ router.post('/evaluate', async (req, res) => {
       });
     }
 
-    // Generate final report and summary
     const report = interview.generateReport();
     const summary = interview.summary;
 
-    // Clean up the session after evaluation
     activeInterviews.delete(sessionId);
 
     res.json({
@@ -137,7 +128,6 @@ router.post('/evaluate', async (req, res) => {
   }
 });
 
-// GET /api/interview/summary - Get current session summary
 router.get('/summary', async (req, res) => {
   try {
     const { sessionId } = req.query;

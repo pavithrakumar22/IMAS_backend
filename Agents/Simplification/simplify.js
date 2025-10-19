@@ -36,10 +36,8 @@ class SimplifyAgent {
                 hasDiagnosis: !!normalizedData.diagnosis
             });
             
-            // Create professional markdown report
             const originalMarkdown = await this._createUniversalMarkdown(normalizedData);
             
-            // Create patient-friendly simplified versions
             const simplifiedData = await this._createUniversalSimplification(normalizedData, targetAudience);
             
             // Format final response for frontend
@@ -66,7 +64,6 @@ class SimplifyAgent {
             complexityType: typeof medicalData.complexity
         });
 
-        // Handle the structure from the route (main case)
         if (medicalData.original && medicalData.diagnosis) {
             const complexityValue = medicalData.complexity?.complexity || 
                                   medicalData.complexity?.level || 
@@ -82,7 +79,6 @@ class SimplifyAgent {
             };
         }
 
-        // Handle string input
         if (typeof medicalData === 'string') {
             return {
                 original: medicalData,
@@ -92,7 +88,6 @@ class SimplifyAgent {
             };
         }
 
-        // Extract from LOW complexity agent (LOWPCPAgent)
         if (medicalData.recommendations) {
             return {
                 original: medicalData.input?.symptoms || "Low complexity case",
@@ -114,7 +109,6 @@ class SimplifyAgent {
             };
         }
 
-        // Extract from MEDIUM complexity agent
         if (medicalData.symptoms && medicalData.doctors) {
             return {
                 original: medicalData.original || "Medium complexity case",
@@ -132,7 +126,6 @@ class SimplifyAgent {
             };
         }
 
-        // Extract from HIGH complexity agent
         if (medicalData.complexity === "HIGH") {
             return {
                 original: medicalData.condition || "High complexity case",
@@ -151,7 +144,6 @@ class SimplifyAgent {
             };
         }
 
-        // Fallback for any other structure
         return {
             original: JSON.stringify(medicalData),
             translated: JSON.stringify(medicalData),
@@ -286,7 +278,6 @@ class SimplifyAgent {
             let plainText = '';
             let markdown = '';
 
-            // Method 1: Look for structured sections
             const plainTextMatch = fullResponse.match(/PLAIN TEXT:?([\s\S]*?)(?=MARKDOWN|## |# |$)/i);
             const markdownMatch = fullResponse.match(/MARKDOWN:?([\s\S]*?)$/i);
 
@@ -300,7 +291,6 @@ class SimplifyAgent {
                 console.log('🔍 Found markdown via structured match');
             }
 
-            // Method 2: If structured parsing failed, try to split by common patterns
             if (!plainText || !markdown) {
                 console.log('🔍 Trying fallback parsing...');
                 const sections = fullResponse.split(/(?=## |# |MARKDOWN)/i);
@@ -317,11 +307,9 @@ class SimplifyAgent {
                 }
             }
 
-            // Clean up any remaining markers
             plainText = plainText.replace(/PLAIN TEXT:?/gi, '').trim();
             markdown = markdown.replace(/MARKDOWN:?/gi, '').trim();
 
-            // Ensure quality content
             if (!plainText || plainText.length < 20) {
                 console.log('🔍 Plain text too short, using fallback');
                 plainText = "Based on your symptoms, it's important to rest and stay hydrated. Please monitor how you're feeling and see a doctor if things don't improve or get worse.";
@@ -352,7 +340,6 @@ class SimplifyAgent {
     _formatFrontendResponse(normalizedData, originalMarkdown, simplifiedData) {
         console.log('🔍 Formatting frontend response...');
         
-        // Ensure we have valid content
         const finalOriginalMarkdown = originalMarkdown && originalMarkdown.length > 100 
             ? originalMarkdown 
             : this._createFallbackMarkdown(normalizedData);
@@ -365,7 +352,6 @@ class SimplifyAgent {
             ? simplifiedData.markdown 
             : `## Simple Explanation\n\n${finalSimplified}`;
 
-        // Use the complexity details if available, otherwise create basic structure
         const complexityResponse = normalizedData.complexityDetails || {
             complexity: normalizedData.complexity,
             reason: this._getComplexityReason(normalizedData.complexity)

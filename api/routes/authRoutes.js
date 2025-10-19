@@ -3,7 +3,6 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
-// 🔹 Clerk Webhook Endpoint
 router.post('/clerk-webhook', async (req, res) => {
   const { type, data } = req.body;
 
@@ -47,12 +46,10 @@ router.post('/clerk-webhook', async (req, res) => {
   }
 });
 
-// 🔹 Sample endpoint to test backend
 router.get("/sample", (req, res) => {
   res.status(200).json({ message: 'Backend auth server is running' });
 });
 
-// 🔹 Sync user (optional, not needed if using webhooks)
 router.post('/sync-user', async (req, res) => {
   try {
     res.status(200).json({ message: 'Sync user not needed when using webhooks' });
@@ -62,7 +59,6 @@ router.post('/sync-user', async (req, res) => {
   }
 });
 
-// 🔹 Get user by Clerk ID
 router.get('/user/:userId', async (req, res) => {
   try {
     const user = await User.findOne({ clerkUserId: req.params.userId });
@@ -74,7 +70,6 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// 🔹 Update User Profile - FIXED FOR ALL USERS
 router.patch('/update-user', async (req, res) => {
   try {
     const { clerkUserId, updates } = req.body;
@@ -148,7 +143,6 @@ router.get('/me', async (req, res) => {
   }
 });
 
-// 🔹 Get all patients for a user
 router.get('/get-all-patients', async (req, res) => {
   try {
     const { clerkUserId } = req.query;
@@ -185,7 +179,6 @@ router.get('/get-all-patients', async (req, res) => {
   }
 });
 
-// 🔹 Get specific patient by patientId
 router.get('/get-patient', async (req, res) => {
   try {
     const { clerkUserId, patientId } = req.query;
@@ -264,7 +257,6 @@ router.post('/append-patient', async (req, res) => {
       });
     }
 
-    // Check if we're updating an existing patient or creating new
     let patient;
     let isNewPatient = true;
 
@@ -311,13 +303,12 @@ router.post('/append-patient', async (req, res) => {
       user.patients.push(patient);
       user.totalPatients += 1;
     } else {
-      // Update existing patient - add new disease to diseases array ONLY if we have diagnosis
       if (patientData.diagnosis) {
         const newDisease = {
           name: patientData.disease || null,
           nameTranslated: patientData.diseaseTranslated || null,
-          diagnosis: patientData.diagnosis, // Original professional diagnosis
-          simplifiedDiagnosis: patientData.simplifiedDiagnosis || null, // Simplified patient-friendly version
+          diagnosis: patientData.diagnosis,
+          simplifiedDiagnosis: patientData.simplifiedDiagnosis || null,
           treatmentDate: patientData.treatmentDate || new Date(),
           outcome: patientData.outcome || 'ongoing',
           complexity: patientData.complexity || null
@@ -325,30 +316,26 @@ router.post('/append-patient', async (req, res) => {
 
         patient.diseases.push(newDisease);
 
-        // Update legacy fields with latest disease info
         patient.Lastdisease = patientData.disease || patient.Lastdisease;
         patient.LastdiseaseTranslated = patientData.diseaseTranslated || patient.LastdiseaseTranslated;
         patient.Lastdiagnosis = patientData.diagnosis;
-        patient.LastdiagnosisSimplified = patientData.simplifiedDiagnosis || patient.LastdiagnosisSimplified; // NEW FIELD
+        patient.LastdiagnosisSimplified = patientData.simplifiedDiagnosis || patient.LastdiagnosisSimplified; 
         patient.LasttreatmentDate = patientData.treatmentDate || new Date();
         patient.Lastoutcome = patientData.outcome || 'ongoing';
         patient.Lastcomplexity = patientData.complexity || patient.Lastcomplexity;
       }
     }
 
-    // Update success cases count
     const hasSuccessfulOutcome = patient.diseases.some(disease =>
       disease.outcome === 'cured' || disease.outcome === 'improved'
     );
 
     if (hasSuccessfulOutcome) {
-      // Only count if this is a new successful case
       if (isNewPatient || patientData.outcome === 'cured' || patientData.outcome === 'improved') {
         user.successfulCases += 1;
       }
     }
 
-    // Calculate success rate
     user.successRate = user.totalPatients > 0 ?
       (user.successfulCases / user.totalPatients) * 100 : 0;
 
@@ -410,7 +397,6 @@ router.post('/add-disease', async (req, res) => {
       });
     }
 
-    // Create new disease object
     const newDisease = {
       name: diseaseData.name,
       nameTranslated: diseaseData.nameTranslated || null,
@@ -420,10 +406,8 @@ router.post('/add-disease', async (req, res) => {
       complexity: diseaseData.complexity || null
     };
 
-    // Add to diseases array
     patient.diseases.push(newDisease);
 
-    // Update legacy fields with the latest disease (optional)
     patient.Lastdisease = diseaseData.name;
     patient.LastdiseaseTranslated = diseaseData.nameTranslated || null;
     patient.Lastdiagnosis = diseaseData.diagnosis || null;
@@ -431,12 +415,10 @@ router.post('/add-disease', async (req, res) => {
     patient.Lastoutcome = diseaseData.outcome || 'ongoing';
     patient.Lastcomplexity = diseaseData.complexity || null;
 
-    // Update success cases if outcome is positive
     if (newDisease.outcome === 'cured' || newDisease.outcome === 'improved') {
       user.successfulCases += 1;
     }
 
-    // Recalculate success rate
     user.successRate = user.totalPatients > 0 ?
       (user.successfulCases / user.totalPatients) * 100 : 0;
 
@@ -459,7 +441,6 @@ router.post('/add-disease', async (req, res) => {
   }
 });
 
-// 🔹 Update patient disease outcome
 router.patch('/update-disease-outcome', async (req, res) => {
   try {
     const { clerkUserId, patientId, diseaseIndex, outcome } = req.body;
@@ -491,12 +472,10 @@ router.patch('/update-disease-outcome', async (req, res) => {
     const previousOutcome = patient.diseases[diseaseIndex].outcome;
     patient.diseases[diseaseIndex].outcome = outcome;
 
-    // Update legacy fields if this is the first disease
     if (diseaseIndex === 0) {
       patient.Lastoutcome = outcome;
     }
 
-    // Update success cases count
     const wasPreviouslySuccessful = previousOutcome === 'cured' || previousOutcome === 'improved';
     const isNowSuccessful = outcome === 'cured' || outcome === 'improved';
 
@@ -506,7 +485,6 @@ router.patch('/update-disease-outcome', async (req, res) => {
       user.successfulCases += 1;
     }
 
-    // Recalculate success rate
     user.successRate = user.totalPatients > 0 ?
       (user.successfulCases / user.totalPatients) * 100 : 0;
 
@@ -532,7 +510,6 @@ router.patch('/update-disease-outcome', async (req, res) => {
   }
 });
 
-// 🔹 Logout (dummy endpoint)
 router.post('/logout', (req, res) => {
   res.status(200).json({ message: 'Logout successful' });
 });
