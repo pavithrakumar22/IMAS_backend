@@ -441,7 +441,7 @@ Based on the symptoms described, a thorough medical evaluation is advised to det
 - Follow up as recommended by your medical team`;
     }
 
-    _createFallbackSimplification(data) {
+    _createFallbackSimplification() {
         const baseText = "Based on your symptoms, it's important to take care of yourself. Rest well, drink plenty of fluids, and keep an eye on how you're feeling. If you don't start to feel better soon or if things get worse, please see a doctor for proper evaluation.";
         
         return {

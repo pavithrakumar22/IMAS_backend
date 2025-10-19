@@ -14,15 +14,6 @@ function getInterviewSession(sessionId) {
   return activeInterviews.get(sessionId);
 }
 
-// Clean up old sessions (optional)
-setInterval(() => {
-  const oneHourAgo = Date.now() - 60 * 60 * 1000;
-  for (const [sessionId, interview] of activeInterviews.entries()) {
-    // You could add timestamp tracking to interview objects
-    // For now, we'll just keep all sessions
-  }
-}, 30 * 60 * 1000); // Clean every 30 minutes
-
 // GET /api/interview/questions - Get all questions at once
 router.get('/questions', async (req, res) => {
   try {
