@@ -4,13 +4,20 @@ import cors from 'cors';
 import combinedRoutes from './api/routes/combined.js';
 import mongoose from 'mongoose';
 import authRoutes from './api/routes/authRoutes.js';
-import langgraphroutes from './api/routes/langgraphroutes.js';
+import interviewRoutes from "./api/routes/interview.js"
+// import handleUser from "./api/routes/handleUser.js"
 import { spawn } from 'child_process';
 
 dotenv.config();
 const app = express();
 
-app.use(cors());
+// app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:3001'], // Add your frontend URLs
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -26,7 +33,8 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/combined', combinedRoutes);
-app.use('/api/lang', langgraphroutes);
+app.use('/api/interview', interviewRoutes);
+// app.use("/api/handle-user", handleUser);
 
 app.get('/health', (req, res) => res.json({ status: "Node is alive" }));
 
