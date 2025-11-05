@@ -16,7 +16,6 @@ router.post('/clerk-webhook', async (req, res) => {
         firstName: data.first_name || null,
         lastName: data.last_name || null,
         lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
-        // Set all optional fields to null/default values
         displayName: null,
         role: null,
         experienceYears: 0,
@@ -203,7 +202,7 @@ router.get('/user/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.status(200).json(user);
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });

@@ -90,6 +90,7 @@ const patientSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
+  // Existing auth fields
   clerkUserId: {
     type: String,
     required: true,
