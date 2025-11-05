@@ -1,5 +1,6 @@
 import express from 'express';
 import MedicalInterview from '../../Agents/Interview/interview.js';
+import User from "../models/User.js"
 
 const router = express.Router();
 
@@ -161,6 +162,62 @@ router.get('/summary', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+router.patch('/update-interview', async (req, res) => {
+  try {
+    const { clerkUserId, interviewPassed } = req.body;
+
+    if (!clerkUserId || typeof interviewPassed !== 'boolean') {
+      return res.status(400).json(false);
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { clerkUserId: clerkUserId },
+      { 
+        $set: { 
+          interviewPassed: interviewPassed,
+          ...(interviewPassed && { interviewCompletedAt: new Date() })
+        } 
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json(false);
+    }
+
+    // Return only true/false
+    res.status(200).json(updatedUser.interviewPassed);
+
+  } catch (error) {
+    console.error('Update interview error:', error);
+    res.status(500).json(false);
+  }
+});
+
+router.get('/get-interview-status', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query;
+
+    if (!clerkUserId) {
+      return res.status(400).json(false);
+    }
+
+    const user = await User.findOne({ clerkUserId: clerkUserId })
+      .select('interviewPassed');
+
+    if (!user) {
+      return res.status(404).json(false);
+    }
+
+    // Return only true/false
+    res.status(200).json(user.interviewPassed);
+
+  } catch (error) {
+    console.error('Get interview status error:', error);
+    res.status(500).json(false);
   }
 });
 

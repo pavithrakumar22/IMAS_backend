@@ -90,7 +90,6 @@ const patientSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-  // Existing auth fields
   clerkUserId: {
     type: String,
     required: true,
@@ -133,6 +132,11 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
+  interviewPassed: {
+    type: Boolean,
+    default:false
+  },
+
   totalPatients: {
     type: Number,
     default: 0
@@ -154,7 +158,8 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  
 });
 
 export default mongoose.model('User', userSchema);

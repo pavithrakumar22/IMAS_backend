@@ -10,28 +10,63 @@ router.post('/clerk-webhook', async (req, res) => {
     console.log("Webhook payload:", req.body);
 
     if (type === 'user.created') {
-      const user = await User.create({
+      const userData = {
         clerkUserId: data.id,
         email: data.email_addresses[0]?.email_address,
-        firstName: data.first_name,
-        lastName: data.last_name,
+        firstName: data.first_name || null,
+        lastName: data.last_name || null,
         lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
-      });
+        // Set all optional fields to null/default values
+        displayName: null,
+        role: null,
+        experienceYears: 0,
+        areaOfOperation: null,
+        interviewPassed: false,
+        totalPatients: 0,
+        successfulCases: 0,
+        successRate: 0,
+        patients: [] 
+      };
+
+      const user = await User.create(userData);
       console.log("User saved:", user);
     }
 
     if (type === 'user.updated') {
+      const updateData = {
+        email: data.email_addresses[0]?.email_address,
+        firstName: data.first_name || null,
+        lastName: data.last_name || null,
+        lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
+      };
+
       const updatedUser = await User.findOneAndUpdate(
         { clerkUserId: data.id },
-        {
-          email: data.email_addresses[0]?.email_address,
-          firstName: data.first_name,
-          lastName: data.last_name,
-          lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
-        },
+        updateData,
         { new: true }
       );
-      console.log("User updated:", updatedUser);
+
+      if (!updatedUser) {
+        const newUser = await User.create({
+          clerkUserId: data.id,
+          email: data.email_addresses[0]?.email_address,
+          firstName: data.first_name || null,
+          lastName: data.last_name || null,
+          lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
+          displayName: null,
+          role: null,
+          experienceYears: 0,
+          areaOfOperation: null,
+          interviewPassed: false, 
+          totalPatients: 0,
+          successfulCases: 0,
+          successRate: 0,
+          patients: []
+        });
+        console.log("User created as fallback:", newUser);
+      } else {
+        console.log("User updated:", updatedUser);
+      }
     }
 
     if (type === 'user.deleted') {
@@ -42,6 +77,62 @@ router.post('/clerk-webhook', async (req, res) => {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Webhook error:', error);
+    
+    if (error.code === 11000) {
+      console.log('Duplicate key error, attempting to find existing user...');
+      
+      try {
+        const existingUser = await User.findOne({ clerkUserId: data.id });
+        if (existingUser) {
+          console.log('User already exists:', existingUser._id);
+          return res.status(200).json({ 
+            success: true, 
+            message: 'User already exists in database' 
+          });
+        }
+        
+        const userData = {
+          clerkUserId: data.id,
+          email: data.email_addresses[0]?.email_address,
+          firstName: data.first_name || null,
+          lastName: data.last_name || null,
+          lastSignInAt: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
+          displayName: null,
+          role: null,
+          experienceYears: 0,
+          areaOfOperation: null,
+          interviewPassed: false, 
+          totalPatients: 0,
+          successfulCases: 0,
+          successRate: 0,
+          patients: []
+        };
+
+        const user = await User.create(userData);
+        console.log("User saved via create:", user);
+        return res.status(200).json({ success: true });
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        
+        try {
+          const existingUserByEmail = await User.findOne({ 
+            email: data.email_addresses[0]?.email_address 
+          });
+          if (existingUserByEmail) {
+            console.log('User exists with same email:', existingUserByEmail._id);
+            return res.status(200).json({ 
+              success: true, 
+              message: 'User exists with same email' 
+            });
+          }
+        } catch (emailError) {
+          console.error('Email lookup error:', emailError);
+        }
+        
+        return res.status(500).json({ error: 'Failed to process user after duplicate key error' });
+      }
+    }
+    
     res.status(500).json({ error: 'Failed to process webhook' });
   }
 });
@@ -52,7 +143,54 @@ router.get("/sample", (req, res) => {
 
 router.post('/sync-user', async (req, res) => {
   try {
-    res.status(200).json({ message: 'Sync user not needed when using webhooks' });
+    const { clerkUserId, email, firstName, lastName } = req.body;
+    
+    if (!clerkUserId && !email) {
+      return res.status(200).json({ 
+        message: 'Sync not needed - webhooks handle user synchronization',
+        webhookBased: true
+      });
+    }
+    
+    if (!clerkUserId || !email) {
+      return res.status(400).json({ 
+        error: 'clerkUserId and email are required for manual sync' 
+      });
+    }
+
+    const userData = {
+      clerkUserId,
+      email,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      displayName: null,
+      role: null,
+      experienceYears: 0,
+      areaOfOperation: null,
+      interviewPassed: false,
+      totalPatients: 0,
+      successfulCases: 0,
+      successRate: 0,
+      patients: []
+    };
+
+    try {
+      const user = await User.create(userData);
+      res.status(200).json({ 
+        message: 'User created successfully',
+        user 
+      });
+    } catch (createError) {
+      if (createError.code === 11000) {
+        const existingUser = await User.findOne({ clerkUserId });
+        res.status(200).json({ 
+          message: 'User already exists',
+          user: existingUser 
+        });
+      } else {
+        throw createError;
+      }
+    }
   } catch (error) {
     console.error('Sync user error:', error);
     res.status(500).json({ error: 'Failed to sync user' });
@@ -65,7 +203,7 @@ router.get('/user/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.status(200).json(user);
   } catch (error) {
-    console.error('Error fetching user:', error); // ✅ Now using the error
+    console.error('Error fetching user:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
@@ -79,6 +217,23 @@ router.patch('/update-user', async (req, res) => {
 
     if (!clerkUserId) {
       return res.status(400).json({ error: 'clerkUserId is required' });
+    }
+
+    // Auto-set interviewPassed based on role
+    if (updates.role) {
+      if (updates.role === 'Guest') {
+        updates.interviewPassed = true; // Guest users automatically pass interview
+      } else if (['RMP', 'CHW', 'Admin'].includes(updates.role)) {
+        updates.interviewPassed = false; // Professional roles start with interview not passed
+      }
+      console.log("Auto-set interviewPassed based on role:", updates.role, "->", updates.interviewPassed);
+    }
+
+    if (updates.patients) {
+      updates.patients = updates.patients.map(patient => ({
+        ...patient,
+        patientId: patient.patientId || `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      }));
     }
 
     const updatedUser = await User.findOneAndUpdate(
@@ -100,6 +255,13 @@ router.patch('/update-user', async (req, res) => {
     });
   } catch (error) {
     console.error('Update error:', error);
+    
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        error: 'Duplicate patient ID detected. Please ensure all patient IDs are unique.' 
+      });
+    }
+    
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
@@ -112,7 +274,7 @@ router.get('/me', async (req, res) => {
       return res.status(400).json({ error: 'clerkUserId is required' });
     }
 
-    const user = await User.findOne({ clerkUserId });
+    const user = await User.findOne({ clerkUserId }); 
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -133,7 +295,7 @@ router.get('/me', async (req, res) => {
         totalPatients: user.totalPatients,
         successfulCases: user.successfulCases,
         successRate: user.successRate,
-        patients: user.patients, // This now includes diseases array and Last* fields
+        patients: user.patients, 
         createdAt: user.createdAt
       }
     });
@@ -287,7 +449,6 @@ router.post('/append-patient', async (req, res) => {
         diseases: patientData.diseases || []
       };
 
-      // Only add to diseases array if we have valid disease data
       if (patientData.disease && patientData.diagnosis) {
         patient.diseases.push({
           name: patientData.disease,
