@@ -133,6 +133,11 @@ const userSchema = new mongoose.Schema({
     default: null
   },
 
+  interviewPassed: {
+    type: Boolean,
+    default:false
+  },
+
   totalPatients: {
     type: Number,
     default: 0
@@ -155,7 +160,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  // emr: emrSchema
+  
 });
 
 export default mongoose.model('User', userSchema);
