@@ -30,11 +30,6 @@ class SimplifyAgent {
 
             // Extract and normalize data from any agent type
             const normalizedData = this._normalizeAgentData(medicalData);
-            console.log('🔍 Normalized data:', {
-                original: normalizedData.original,
-                complexity: normalizedData.complexity,
-                hasDiagnosis: !!normalizedData.diagnosis
-            });
             
             const originalMarkdown = await this._createUniversalMarkdown(normalizedData);
             
@@ -206,8 +201,6 @@ class SimplifyAgent {
             const response = await result.response;
             const markdown = response.text().trim();
 
-            console.log('🔍 Markdown generated, length:', markdown.length);
-
             return markdown && markdown.length > 100 ? markdown : this._createFallbackMarkdown(normalizedData);
 
         } catch (error) {
@@ -253,8 +246,6 @@ class SimplifyAgent {
             const response = await result.response;
             const fullResponse = response.text();
 
-            console.log('🔍 Simplification response received, length:', fullResponse.length);
-
             const { plainText, markdown } = this._parseSimplificationResponse(fullResponse);
             
             return {
@@ -283,27 +274,22 @@ class SimplifyAgent {
 
             if (plainTextMatch?.[1]) {
                 plainText = plainTextMatch[1].trim();
-                console.log('🔍 Found plain text via structured match');
             }
 
             if (markdownMatch?.[1]) {
                 markdown = markdownMatch[1].trim();
-                console.log('🔍 Found markdown via structured match');
             }
 
             if (!plainText || !markdown) {
-                console.log('🔍 Trying fallback parsing...');
                 const sections = fullResponse.split(/(?=## |# |MARKDOWN)/i);
                 
                 if (sections.length >= 2) {
                     plainText = sections[0].replace(/PLAIN TEXT:?/gi, '').trim();
                     markdown = sections.slice(1).join('').replace(/MARKDOWN:?/gi, '').trim();
-                    console.log('🔍 Used section splitting fallback');
-                } else {
-                    // Method 3: Use the whole response for both
+                }
+                else {
                     plainText = this._cleanText(fullResponse);
                     markdown = `## Simple Explanation\n\n${plainText}`;
-                    console.log('🔍 Used full response fallback');
                 }
             }
 
@@ -311,12 +297,10 @@ class SimplifyAgent {
             markdown = markdown.replace(/MARKDOWN:?/gi, '').trim();
 
             if (!plainText || plainText.length < 20) {
-                console.log('🔍 Plain text too short, using fallback');
                 plainText = "Based on your symptoms, it's important to rest and stay hydrated. Please monitor how you're feeling and see a doctor if things don't improve or get worse.";
             }
 
             if (!markdown || markdown.length < 20 || !markdown.includes('#')) {
-                console.log('🔍 Markdown too short, creating from plain text');
                 markdown = `## Simple Explanation\n\n${plainText}`;
             }
 
@@ -370,13 +354,6 @@ class SimplifyAgent {
             },
             timestamp: new Date().toISOString()
         };
-
-        console.log('🔍 Final response formatted:', {
-            originalLength: result.original?.length,
-            simplifiedLength: result.simplified.simplified?.length,
-            simplifiedMarkdownLength: result.simplified.simplifiedMarkdown?.length,
-            originalDiagnosisMarkdownLength: result.simplified.originalDiagnosisMarkdown?.length
-        });
 
         return result;
     }
