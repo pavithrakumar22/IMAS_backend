@@ -4,6 +4,7 @@ import cors from 'cors';
 import combinedRoutes from './api/routes/combined.js';
 import mongoose from 'mongoose';
 import authRoutes from './api/routes/authRoutes.js';
+import langgraphroutes from './api/routes/langgraphroutes.js';
 import { spawn } from 'child_process';
 
 dotenv.config();
@@ -21,6 +22,7 @@ mongoose.connect(process.env.MONGODB_URI)
 
 app.use('/api/auth', authRoutes);
 app.use('/api/combined', combinedRoutes);
+app.use('/api/lang', langgraphroutes);
 
 app.get('/health', (req, res) => res.json({ status: "Node is alive" }));
 
