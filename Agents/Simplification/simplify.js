@@ -38,7 +38,6 @@ class SimplifyAgent {
             // Format final response for frontend
             const result = this._formatFrontendResponse(normalizedData, originalMarkdown, simplifiedData);
 
-            console.log('✅ Processing completed successfully');
             return result;
 
         } catch (error) {
@@ -152,9 +151,7 @@ class SimplifyAgent {
      * Create universal markdown that works for all agent types
      */
     async _createUniversalMarkdown(normalizedData) {
-        try {
-            console.log('🔍 Creating universal markdown...');
-            
+        try {    
             const prompt = `
             Create a comprehensive medical report in markdown format based on this medical data.
             
@@ -214,8 +211,6 @@ class SimplifyAgent {
      */
     async _createUniversalSimplification(normalizedData, audience) {
         try {
-            console.log('🔍 Creating universal simplification for audience:', audience);
-            
             const prompt = `
             Explain this medical information in SIMPLE, FRIENDLY language for a ${audience} audience.
             
@@ -264,8 +259,6 @@ class SimplifyAgent {
      */
     _parseSimplificationResponse(fullResponse) {
         try {
-            console.log('🔍 Parsing simplification response...');
-            
             let plainText = '';
             let markdown = '';
 
@@ -304,7 +297,7 @@ class SimplifyAgent {
                 markdown = `## Simple Explanation\n\n${plainText}`;
             }
 
-            console.log('🔍 Final content lengths - Plain text:', plainText.length, 'Markdown:', markdown.length);
+            // console.log('🔍 Final content lengths - Plain text:', plainText.length, 'Markdown:', markdown.length);
 
             return { plainText, markdown };
 
@@ -322,7 +315,6 @@ class SimplifyAgent {
      * Format final response for frontend
      */
     _formatFrontendResponse(normalizedData, originalMarkdown, simplifiedData) {
-        console.log('🔍 Formatting frontend response...');
         
         const finalOriginalMarkdown = originalMarkdown && originalMarkdown.length > 100 
             ? originalMarkdown 
@@ -379,29 +371,27 @@ class SimplifyAgent {
     }
 
     _createFallbackMarkdown(data) {
-        console.log('🔍 Creating fallback markdown');
         return `# Medical Assessment Report
+            ## Patient Presentation
+            - **Chief Complaint**: ${data.original}
+            - **Complexity Level**: ${data.complexity}
 
-## Patient Presentation
-- **Chief Complaint**: ${data.original}
-- **Complexity Level**: ${data.complexity}
+            ## Clinical Summary
+            Medical evaluation is recommended based on the presented symptoms. Please consult with a healthcare provider for proper diagnosis and treatment planning.
 
-## Clinical Summary
-Medical evaluation is recommended based on the presented symptoms. Please consult with a healthcare provider for proper diagnosis and treatment planning.
+            ## Assessment
+            Based on the symptoms described, a thorough medical evaluation is advised to determine the appropriate course of treatment.
 
-## Assessment
-Based on the symptoms described, a thorough medical evaluation is advised to determine the appropriate course of treatment.
+            ## Recommendations
+            1. Schedule a medical appointment for proper evaluation
+            2. Monitor symptoms closely and note any changes
+            3. Seek immediate medical attention if symptoms worsen
+            4. Follow any specific guidance provided by healthcare professionals
 
-## Recommendations
-1. Schedule a medical appointment for proper evaluation
-2. Monitor symptoms closely and note any changes
-3. Seek immediate medical attention if symptoms worsen
-4. Follow any specific guidance provided by healthcare professionals
-
-## Next Steps
-- Consult with a healthcare provider for personalized medical advice
-- Keep track of your symptoms and their progression
-- Follow up as recommended by your medical team`;
+            ## Next Steps
+            - Consult with a healthcare provider for personalized medical advice
+            - Keep track of your symptoms and their progression
+            - Follow up as recommended by your medical team`;
     }
 
     _createFallbackSimplification() {

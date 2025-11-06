@@ -11,14 +11,15 @@ import MCPAgent from '../../Agents/Medium/MCPAgent.js';
 import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
 import SimplifyAgent from '../../Agents/Simplification/simplify.js';
 import emrRoutes from './emrRoutes.js';
+import Guardrails from '../../Agents/guardrails/guardrails.js';
 
 loadEnv();
 
 const router = express.Router();
-
 const simplifier = new SimplifyAgent();
+const guardrails = new Guardrails();
 
-function formatResponse(originalText, translatedText, complexity, diagnosis, simplified = null) {
+function formatResponse(originalText, translatedText, complexity, diagnosis, simplified = null, guardrailResults = {}) {
   return {
     original: originalText || null,
     translated: translatedText || null,
@@ -27,7 +28,8 @@ function formatResponse(originalText, translatedText, complexity, diagnosis, sim
       reason: complexity?.reason || "No explanation provided"
     },
     diagnosis: diagnosis || {},
-    simplified: simplified || null
+    simplified: simplified || null,
+    guardrails: guardrailResults
   };
 }
 
@@ -49,6 +51,7 @@ async function classifyAndDiagnose(translatedText) {
     }
 
     let diagnosisResult = null;
+    let diagnosisGuardrail = null;
 
     console.log("Classified problem as: " + complexityResult.complexity);
     console.log("Generating Plan...");
@@ -58,12 +61,16 @@ async function classifyAndDiagnose(translatedText) {
       const lowAgent = new LOWPCPAgent(apiKey);
       try {
         diagnosisResult = await lowAgent.generateHealthPlan(translatedText);
+        diagnosisGuardrail = await guardrails.evaluate(
+          translatedText,
+          diagnosisResult,
+          'low-complexity-diagnosis'
+        );
       }
       catch (err) {
         console.error("Failed to generate low complexity health plan:", err);
         diagnosisResult = { error: "Low complexity plan generation failed" };
       }
-
     }
     else if (complexityResult.complexity === "MEDIUM") {
       const apiKey = process.env.GEMINI_API_KEY;
@@ -79,17 +86,26 @@ async function classifyAndDiagnose(translatedText) {
           doctors: patientInfo.doctors || [],
           specialistResponses: specialistResponses || []
         };
+        diagnosisGuardrail = await guardrails.evaluate(
+          translatedText,
+          diagnosisResult,
+          'medium-complexity-diagnosis'
+        );
       }
       catch (err) {
         console.error("Failed to generate medium complexity plan:", err);
         diagnosisResult = { error: "Medium complexity plan generation failed" };
       }
-
     }
     else if (complexityResult.complexity === "HIGH") {
       try {
         const highResult = await highComplexityTool.invoke(translatedText);
         diagnosisResult = JSON.parse(highResult);
+        diagnosisGuardrail = await guardrails.evaluate(
+          translatedText,
+          diagnosisResult,
+          'high-complexity-diagnosis'
+        );
       }
       catch (err) {
         console.error("Failed to parse highComplexityTool response:", err);
@@ -97,22 +113,25 @@ async function classifyAndDiagnose(translatedText) {
       }
     }
     console.log("Plan Generated...");
-    return { complexity: complexityResult, diagnosis: diagnosisResult };
+    return { 
+      complexity: complexityResult, 
+      diagnosis: diagnosisResult,
+      diagnosisGuardrail: diagnosisGuardrail
+    };
 
   }
   catch (err) {
     console.error("Error in classifyAndDiagnose:", err);
     return {
       complexity: { complexity: "ERROR", reason: err.message },
-      diagnosis: { error: "Internal processing error" }
+      diagnosis: { error: "Internal processing error" },
+      diagnosisGuardrail: null
     };
   }
 }
 
-
 async function simplifyText(text, audience = "general") {
   try {
-
     const result = await simplifier.simplifyResponse(text, audience);
     console.log('Simplify response:', JSON.stringify(result, null, 2));
 
@@ -141,7 +160,6 @@ router.post('/translate-and-classify', async (req, res) => {
 
     console.log('🔍 Starting translation and medical analysis...');
 
-    // Step 1: Translate the text
     const formData = new URLSearchParams();
     formData.append('text', text);
     formData.append('src', src);
@@ -154,11 +172,22 @@ router.post('/translate-and-classify', async (req, res) => {
     const translatedText = flaskResponse.data.output;
     console.log('✅ Translation completed');
 
-    // Step 2: Classify complexity and get diagnosis
-    const { complexity: detectedComplexity, diagnosis } = await classifyAndDiagnose(translatedText);
+    const translationGuardrail = await guardrails.evaluate(
+      { text, src, tgt },
+      { translation: translatedText },
+      'translation-check'
+    );
+    console.log('✅ Translation guardrail check completed:', translationGuardrail.passed ? 'PASSED' : 'FAILED');
+
+    const { complexity: detectedComplexity, diagnosis, diagnosisGuardrail } = await classifyAndDiagnose(translatedText);
     console.log('✅ Medical classification completed:', detectedComplexity.complexity);
+    if (diagnosisGuardrail) {
+      console.log('✅ Diagnosis guardrail check completed:', diagnosisGuardrail.passed ? 'PASSED' : 'FAILED');
+    }
 
     let result;
+    let simplificationGuardrail = null;
+
     if (simplify) {
       console.log('🔍 Starting simplification process...');
       
@@ -171,6 +200,16 @@ router.post('/translate-and-classify', async (req, res) => {
       
       result = await simplifier.processMedicalData(medicalData, audience || "general");
       
+      if (result.success && result.simplified) {
+        simplificationGuardrail = await guardrails.evaluate(
+          diagnosis,
+          result.simplified,
+          'simplification-check',
+          { audience: audience || "general" }
+        );
+        console.log('✅ Simplification guardrail check completed:', simplificationGuardrail.passed ? 'PASSED' : 'FAILED');
+      }
+      
       console.log('✅ Simplification completed');
     } else {
       result = {
@@ -182,6 +221,12 @@ router.post('/translate-and-classify', async (req, res) => {
         timestamp: new Date().toISOString()
       };
     }
+
+    result.guardrails = {
+      translation: translationGuardrail,
+      diagnosis: diagnosisGuardrail,
+      simplification: simplificationGuardrail
+    };
 
     console.log('✅ Final response ready');
     res.json(result);
@@ -199,7 +244,7 @@ router.post('/translate-and-classify', async (req, res) => {
 
 const upload = multer({ dest: 'uploads/' });
 
-router.use('/api/emr',emrRoutes);
+router.use('/api/emr', emrRoutes);
 
 router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
   let audioFile;
@@ -225,16 +270,38 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
       throw new Error("STT + Translation service returned no output.");
     }
 
-    const { complexity, diagnosis } = await classifyAndDiagnose(translatedText);
+    const translationGuardrail = await guardrails.evaluate(
+      { src, tgt },
+      { translation: translatedText },
+      'translation-check'
+    );
 
+    const { complexity, diagnosis, diagnosisGuardrail } = await classifyAndDiagnose(translatedText);
 
     let simplifiedResult = null;
+    let simplificationGuardrail = null;
+
     if (simplify) {
       const targetAudience = audience || "general";
       simplifiedResult = await simplifyText(JSON.stringify(diagnosis), targetAudience);
+      
+      if (simplifiedResult.success && simplifiedResult.simplified) {
+        simplificationGuardrail = await guardrails.evaluate(
+          diagnosis,
+          simplifiedResult.simplified,
+          'simplification-check',
+          { audience: targetAudience }
+        );
+      }
     }
 
-    res.json(formatResponse(null, translatedText, complexity, diagnosis, simplifiedResult));
+    const guardrailResults = {
+      translation: translationGuardrail,
+      diagnosis: diagnosisGuardrail,
+      simplification: simplificationGuardrail
+    };
+
+    res.json(formatResponse(null, translatedText, complexity, diagnosis, simplifiedResult, guardrailResults));
 
   }
   catch (err) {
@@ -264,12 +331,25 @@ router.post('/simplify', async (req, res) => {
 
     const result = await simplifyText(text, audience);
 
+    let guardrailResult = null;
+    if (result.success && result.simplified) {
+      guardrailResult = await guardrails.evaluate(
+        text,
+        result.simplified,
+        'simplification-check',
+        { audience }
+      );
+    }
+
     if (result.success) {
       res.json({
         success: true,
         original: text,
         simplified: result.simplified,
-        audience: audience
+        audience: audience,
+        guardrails: {
+          simplification: guardrailResult
+        }
       });
     }
     else {
