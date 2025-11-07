@@ -5,7 +5,15 @@ loadEnv();
 
 class GeminiCoordinator {
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+      throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
+    }
+
+    console.log('🔧 GeminiCoordinator using API key, length:', apiKey.length);
+    
+    this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash"});
 
     this.specialistOptions = [

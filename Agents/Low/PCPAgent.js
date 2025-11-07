@@ -1,10 +1,21 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export default class LOWPCPAgent {
-  constructor(apiKey) {
+  constructor(apiKey = null) {
+    const finalApiKey = apiKey || process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    
+    if (!finalApiKey) {
+      throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required, or pass apiKey to constructor');
+    }
+
+    console.log('🔧 LOWPCPAgent using API key, length:', finalApiKey.length);
+    
     this.llm = new ChatGoogleGenerativeAI({
       model: "gemini-2.5-flash",
-      apiKey: apiKey,
+      googleApiKey: finalApiKey,
       maxOutputTokens: 2048,
       temperature: 0.5
     });
@@ -61,12 +72,20 @@ export default class LOWPCPAgent {
         "rationale": "Condition can be managed with OTC medications and simple lifestyle changes"
       }`;
 
-      const professionalResponse = await this._generateResponse(professionalPrompt);
-
-      this.cachedResponse = this._formatResponse(
-        this._parseResponse(professionalResponse),
-        symptoms
-      );
+      try {
+        const professionalResponse = await this._generateResponse(professionalPrompt);
+        this.cachedResponse = this._formatResponse(
+          this._parseResponse(professionalResponse),
+          symptoms
+        );
+      } catch (error) {
+        console.error('❌ LOWPCPAgent generation failed:', error.message);
+        // Return fallback response
+        this.cachedResponse = this._formatResponse(
+          this._getFallbackResponse(),
+          symptoms
+        );
+      }
     }
 
     return this.cachedResponse;

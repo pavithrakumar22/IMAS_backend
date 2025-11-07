@@ -6,19 +6,29 @@ loadEnv();
 class SimplifyAgent {
     constructor() {
         console.log('🔧 Initializing SimplifyAgent');
-        
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error('GEMINI_API_KEY environment variable is required');
+
+        // console.log('🔍 Environment check:');
+        // console.log('GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? `Exists (length: ${process.env.GOOGLE_API_KEY.length})` : 'MISSING');
+        // console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? `Exists (length: ${process.env.GEMINI_API_KEY.length})` : 'MISSING');
+
+        const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+
+        if (!apiKey) {
+            throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required');
         }
 
-        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        this.model = this.genAI.getGenerativeModel({ 
-            model: "gemini-2.5-flash", 
+        // console.log('✅ Using API key, length:', apiKey.length);
+
+        this.genAI = new GoogleGenerativeAI(apiKey);
+        this.model = this.genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 4096,
             }
         });
+
+        console.log('✅ SimplifyAgent initialized successfully');
     }
 
     /**
@@ -35,11 +45,11 @@ class SimplifyAgent {
                 complexity: normalizedData.complexity,
                 hasDiagnosis: !!normalizedData.diagnosis
             });
-            
+
             const originalMarkdown = await this._createUniversalMarkdown(normalizedData);
-            
+
             const simplifiedData = await this._createUniversalSimplification(normalizedData, targetAudience);
-            
+
             // Format final response for frontend
             const result = this._formatFrontendResponse(normalizedData, originalMarkdown, simplifiedData);
 
@@ -65,11 +75,11 @@ class SimplifyAgent {
         });
 
         if (medicalData.original && medicalData.diagnosis) {
-            const complexityValue = medicalData.complexity?.complexity || 
-                                  medicalData.complexity?.level || 
-                                  medicalData.complexity || 
-                                  "UNKNOWN";
-            
+            const complexityValue = medicalData.complexity?.complexity ||
+                medicalData.complexity?.level ||
+                medicalData.complexity ||
+                "UNKNOWN";
+
             return {
                 original: medicalData.original,
                 translated: medicalData.translated || medicalData.original,
@@ -159,7 +169,7 @@ class SimplifyAgent {
     async _createUniversalMarkdown(normalizedData) {
         try {
             console.log('🔍 Creating universal markdown...');
-            
+
             const prompt = `
             Create a comprehensive medical report in markdown format based on this medical data.
             
@@ -222,7 +232,7 @@ class SimplifyAgent {
     async _createUniversalSimplification(normalizedData, audience) {
         try {
             console.log('🔍 Creating universal simplification for audience:', audience);
-            
+
             const prompt = `
             Explain this medical information in SIMPLE, FRIENDLY language for a ${audience} audience.
             
@@ -256,7 +266,7 @@ class SimplifyAgent {
             console.log('🔍 Simplification response received, length:', fullResponse.length);
 
             const { plainText, markdown } = this._parseSimplificationResponse(fullResponse);
-            
+
             return {
                 simplified: plainText,
                 markdown: markdown
@@ -274,7 +284,7 @@ class SimplifyAgent {
     _parseSimplificationResponse(fullResponse) {
         try {
             console.log('🔍 Parsing simplification response...');
-            
+
             let plainText = '';
             let markdown = '';
 
@@ -294,7 +304,7 @@ class SimplifyAgent {
             if (!plainText || !markdown) {
                 console.log('🔍 Trying fallback parsing...');
                 const sections = fullResponse.split(/(?=## |# |MARKDOWN)/i);
-                
+
                 if (sections.length >= 2) {
                     plainText = sections[0].replace(/PLAIN TEXT:?/gi, '').trim();
                     markdown = sections.slice(1).join('').replace(/MARKDOWN:?/gi, '').trim();
@@ -339,17 +349,17 @@ class SimplifyAgent {
      */
     _formatFrontendResponse(normalizedData, originalMarkdown, simplifiedData) {
         console.log('🔍 Formatting frontend response...');
-        
-        const finalOriginalMarkdown = originalMarkdown && originalMarkdown.length > 100 
-            ? originalMarkdown 
+
+        const finalOriginalMarkdown = originalMarkdown && originalMarkdown.length > 100
+            ? originalMarkdown
             : this._createFallbackMarkdown(normalizedData);
 
-        const finalSimplified = simplifiedData.simplified && simplifiedData.simplified.length > 20 
-            ? simplifiedData.simplified 
+        const finalSimplified = simplifiedData.simplified && simplifiedData.simplified.length > 20
+            ? simplifiedData.simplified
             : "Based on your symptoms, it's important to rest and stay hydrated. Please consult a healthcare provider for proper evaluation.";
 
-        const finalSimplifiedMarkdown = simplifiedData.markdown && simplifiedData.markdown.length > 50 
-            ? simplifiedData.markdown 
+        const finalSimplifiedMarkdown = simplifiedData.markdown && simplifiedData.markdown.length > 50
+            ? simplifiedData.markdown
             : `## Simple Explanation\n\n${finalSimplified}`;
 
         const complexityResponse = normalizedData.complexityDetails || {
@@ -386,9 +396,9 @@ class SimplifyAgent {
      */
     _cleanText(text) {
         return text.replace(/#+|\\*\\*|\\*|\\- /g, '')
-                  .replace(/\n+/g, ' ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
+            .replace(/\n+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
     }
 
     _getComplexityReason(complexity) {
@@ -429,7 +439,7 @@ Based on the symptoms described, a thorough medical evaluation is advised to det
 
     _createFallbackSimplification() {
         const baseText = "Based on your symptoms, it's important to take care of yourself. Rest well, drink plenty of fluids, and keep an eye on how you're feeling. If you don't start to feel better soon or if things get worse, please see a doctor for proper evaluation.";
-        
+
         return {
             simplified: baseText,
             markdown: `## Simple Advice\n\n${baseText}\n\n### What to Do Next:\n\n1. **Rest and hydrate** - Give your body time to recover\n2. **Monitor symptoms** - Keep track of how you're feeling\n3. **See a doctor** - If things don't improve or get worse\n4. **Follow medical advice** - Always consult with healthcare professionals`
@@ -438,7 +448,7 @@ Based on the symptoms described, a thorough medical evaluation is advised to det
 
     _createErrorResponse(originalData, error) {
         console.error('🔍 Creating error response:', error);
-        
+
         return {
             success: false,
             original: typeof originalData === 'string' ? originalData : JSON.stringify(originalData),

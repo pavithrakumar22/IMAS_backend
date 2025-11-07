@@ -4,8 +4,16 @@ import dotenv from "dotenv"
 dotenv.config();
 
 export default class MedicalAssistantAgent {
-  constructor(apiKey) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+  constructor(apiKey = null) {
+    const finalApiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
+    
+    if (!finalApiKey) {
+      throw new Error('GOOGLE_API_KEY or GEMINI_API_KEY environment variable is required, or pass apiKey to constructor');
+    }
+
+    console.log('🔧 MedicalAssistantAgent using API key, length:', finalApiKey.length);
+    
+    this.genAI = new GoogleGenerativeAI(finalApiKey);
     this.model = this.genAI.getGenerativeModel({
       model: "gemini-2.5-flash", 
     });
@@ -65,11 +73,20 @@ IMPORTANT NOTES:
 5. Keep it simple and the response should not be too long
 `;
 
-      const result = await this.model.generateContent({
-        contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
-      });
-      const cleantext = result.response.text().replace(/json\n?/, '').replace(/$/, '').trim();
-      responses[specialistType] = cleantext
+      try {
+        const result = await this.model.generateContent({
+          contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
+        });
+        const cleantext = result.response.text().replace(/json\n?/, '').replace(/$/, '').trim();
+        responses[specialistType] = cleantext;
+      } catch (error) {
+        console.error(`❌ Error getting response from ${specialistType}:`, error.message);
+        responses[specialistType] = {
+          error: `Failed to get response from ${specialistType}: ${error.message}`,
+          for_professional: {},
+          for_patient: {}
+        };
+      }
     }
 
     return responses;
