@@ -12,6 +12,8 @@ import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
 import SimplifyAgent from '../../Agents/Simplification/simplify.js';
 import emrRoutes from './emrRoutes.js';
 import Guardrails from '../../Agents/Guardrails/guardrails.js';
+import generateMedicalReport from '../../Agents/Report/reportgen.js';
+import path from 'path';
 
 loadEnv();
 
@@ -270,12 +272,6 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
       throw new Error("STT + Translation service returned no output.");
     }
 
-    const translationGuardrail = await guardrails.evaluate(
-      { src, tgt },
-      { translation: translatedText },
-      'translation-check'
-    );
-
     const { complexity, diagnosis, diagnosisGuardrail } = await classifyAndDiagnose(translatedText);
 
     let simplifiedResult = null;
@@ -296,7 +292,6 @@ router.post('/stt-and-classify', upload.single('audio'), async (req, res) => {
     }
 
     const guardrailResults = {
-      translation: translationGuardrail,
       diagnosis: diagnosisGuardrail,
       simplification: simplificationGuardrail
     };
@@ -369,5 +364,39 @@ router.post('/simplify', async (req, res) => {
     });
   }
 });
+
+
+router.post('/report', async (req, res) => {
+  try {
+    const { diagnosisData, fileName } = req.body;
+    if (!diagnosisData || typeof diagnosisData !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: "Missing or invalid 'diagnosisData' in request body."
+      });
+    }
+
+    const pdfPath = await generateMedicalReport(diagnosisData, fileName || 'medical-report');
+    if (!fs.existsSync(pdfPath)) {
+      return res.status(500).json({ success: false, error: 'PDF generation failed.' });
+    }
+
+    res.download(pdfPath, path.basename(pdfPath), (err) => {
+      if (err) {
+        console.error('Error sending file:', err);
+        res.status(500).json({ success: false, error: 'Failed to download report.' });
+      } else {
+        console.log('Report downloaded:', pdfPath);
+      }
+    });
+  } catch (error) {
+    console.error('Error generating medical report:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate PDF report'
+    });
+  }
+});
+
 
 export default router;

@@ -41,33 +41,22 @@ class Guardrails {
     return content;
   }
 
-  parseJSONSafely(content, context = '') {
+  parseJSONSafely(content, fallback = null) {
+    if (content === null || content === undefined) return fallback;
+    let str = String(content).trim();
+    if (!str) return fallback;
+    const codeBlockMatch = str.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (codeBlockMatch && codeBlockMatch[1].trim()) {
+      str = codeBlockMatch[1].trim();
+    } else {
+      const jsonMatch = str.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+      if (jsonMatch) str = jsonMatch[1].trim();
+    }
+    if (!str) return fallback;
     try {
-      return JSON.parse(content);
-    } catch (error) {
-      console.error(`JSON Parse Error in ${context}:`, error.message);
-      console.error('Content that failed to parse:', content);
-      
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          return JSON.parse(jsonMatch[0]);
-        } catch {
-          console.error('Failed to extract JSON object from content');
-        }
-      }
-      
-      const scoreMatch = content.match(/"score"\s*:\s*([\d.]+)/);
-      const reasonMatch = content.match(/"reason"\s*:\s*"([^"]*?)"/);
-      
-      if (scoreMatch) {
-        return {
-          score: parseFloat(scoreMatch[1]),
-          reason: reasonMatch ? reasonMatch[1] : 'Could not parse reason'
-        };
-      }
-      
-      throw new Error(`Failed to parse JSON in ${context}: ${error.message}`);
+      return JSON.parse(str);
+    } catch {
+      return fallback;
     }
   }
 
@@ -95,6 +84,8 @@ class Guardrails {
       const content = this.extractContent(response);
       
       const result = this.parseJSONSafely(content, 'Translation Evaluation');
+
+      console.log(result);
       
       return {
         score: result.score || 0,
@@ -170,6 +161,7 @@ class Guardrails {
       7. Completeness - No critical information lost
 
       CRITICAL: Your response must be ONLY valid JSON with no extra text. Keep the reason brief and simple without quotes or special characters.
+      CRITICAL: Respond ONLY with valid JSON. Do NOT include explanations, markdown, or extra characters.
 
       Return format:
       {"score": 8.5, "reason": "Simplification is clear and preserves all key information"}`;
