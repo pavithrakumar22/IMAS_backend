@@ -5,13 +5,12 @@ loadEnv();
 
 class SimplifyAgent {
     constructor() {
-        console.log('🔧 Initializing SimplifyAgent');
         
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error('GEMINI_API_KEY environment variable is required');
+        if (!process.env.GEMINI_API_KEY2) {
+            throw new Error('GEMINI_API_KEY2 environment variable is required');
         }
 
-        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY2);
         this.model = this.genAI.getGenerativeModel({ 
             model: "gemini-2.5-flash", 
             generationConfig: {

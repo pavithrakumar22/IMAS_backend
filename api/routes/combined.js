@@ -11,7 +11,7 @@ import MCPAgent from '../../Agents/Medium/MCPAgent.js';
 import { geminiCoordinator } from '../../Agents/Medium/geminiCoordinator.js';
 import SimplifyAgent from '../../Agents/Simplification/simplify.js';
 import emrRoutes from './emrRoutes.js';
-import Guardrails from '../../Agents/guardrails/guardrails.js';
+import Guardrails from '../../Agents/Guardrails/guardrails.js';
 
 loadEnv();
 
