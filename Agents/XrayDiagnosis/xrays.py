@@ -62,35 +62,24 @@ def analyse_image(image_path, weights="resnet50-res512-all", cuda=False, resize=
     genai.configure(api_key=api_key)
     model_gemini = genai.GenerativeModel('gemini-2.5-flash')
 
-    findings_json_prompt = f"""
-        You are a friendly medical assistant helping to explain AI chest X-ray results in clear, everyday language.
+    findings_paragraph_prompt = f"""
+    You are a friendly medical assistant helping to explain AI chest X-ray results in simple, everyday language.
 
-        The model predicted the following possible findings with these probability percentages:
-        {top_preds}
+    The model predicted the following possible findings with these probability percentages:
+    {top_preds}
 
-        Please create a simple and clear explanation for each finding:
-        - Avoid medical jargon unless absolutely necessary, and explain any technical words you use.
-        - Keep your tone calm, reassuring, and easy to understand.
-        - Include a new key called "suggested_measures" that provides general, non-prescriptive guidance such as:
-            - When to see a doctor
-            - Simple monitoring or lifestyle reminders
-            - What kind of follow-up might be helpful
-        - DO NOT give medical treatments or medication advice.
-        - DO NOT include markdown, bullet points, or code fences.
-        - The response must be valid JSON only.
+    Write a single paragraph describing what the X-ray suggests, as if you are describing the patient's symptoms or condition summary for a doctor to understand. 
 
-        Output format (strictly follow this structure):
-        [
-        {{
-            "finding": "<exact name of pathology>",
-            "reason": "<simple explanation of what this means and why it might appear on the X-ray in detailed like you are a doctor advising a patient>",
-            "probability_percentage": <take the exact value from the input {top_preds}>
-            "suggested_measures": "<simple tips and general, easy-to-understand guidance in detailed manner like you are a doctor advising a patient>"
-        }}
-        ]
+    Guidelines:
+    - Use natural medical language suitable for a "symptom description" field (e.g., "The patient appears to have mild infection signs in the lungs, possibly indicating pneumonia...").
+    - Avoid structured formats, lists, or JSON.
+    - Be clear and factual, but not diagnostic.
+    - Mention the most likely findings (based on probability) naturally in the sentence.
+    - Avoid giving treatment or medical advice.
+    - Output plain text only (no markdown or symbols).
     """
 
-    response = model_gemini.generate_content(findings_json_prompt)
+    response = model_gemini.generate_content(findings_paragraph_prompt)
     text = response.text.strip()
 
     if text.startswith("```"):
@@ -101,11 +90,11 @@ def analyse_image(image_path, weights="resnet50-res512-all", cuda=False, resize=
     try:
         detailed_json = json.loads(text)
     except Exception:
-        detailed_json = {"raw_response": text}
+        detailed_json = {"output": text}
 
     print("Response generated succesfully...")
 
-    return {"detailed_diagnosis": detailed_json}
+    return detailed_json
 
 # #Testing
 # response = analyse_image(".//images//xr-3.jpg")
