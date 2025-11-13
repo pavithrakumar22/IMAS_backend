@@ -441,7 +441,7 @@ router.post('/append-patient', async (req, res) => {
         Lastdisease: patientData.disease || null,
         LastdiseaseTranslated: patientData.diseaseTranslated || null,
         Lastdiagnosis: patientData.diagnosis || null,
-        LastdiagnosisSimplified: patientData.simplifiedDiagnosis || null, // NEW FIELD
+        LastdiagnosisSimplified: patientData.simplifiedDiagnosis || null,
         LasttreatmentDate: patientData.treatmentDate || new Date(),
         Lastoutcome: patientData.outcome || 'ongoing',
         Lastcomplexity: patientData.complexity || null,
@@ -452,8 +452,8 @@ router.post('/append-patient', async (req, res) => {
         patient.diseases.push({
           name: patientData.disease,
           nameTranslated: patientData.diseaseTranslated || null,
-          diagnosis: patientData.diagnosis, // Original professional diagnosis
-          simplifiedDiagnosis: patientData.simplifiedDiagnosis || null, // Simplified patient-friendly version
+          diagnosis: patientData.diagnosis,
+          simplifiedDiagnosis: patientData.simplifiedDiagnosis || null,
           treatmentDate: patientData.treatmentDate || new Date(),
           outcome: patientData.outcome || 'ongoing',
           complexity: patientData.complexity || null
@@ -486,18 +486,21 @@ router.post('/append-patient', async (req, res) => {
       }
     }
 
-    const hasSuccessfulOutcome = patient.diseases.some(disease =>
-      disease.outcome === 'cured' || disease.outcome === 'improved'
-    );
+    // Recalculate successful cases and success rate across ALL patients and ALL diseases
+    let totalCases = 0;
+    let successfulCases = 0;
 
-    if (hasSuccessfulOutcome) {
-      if (isNewPatient || patientData.outcome === 'cured' || patientData.outcome === 'improved') {
-        user.successfulCases += 1;
-      }
-    }
+    user.patients.forEach(patient => {
+      patient.diseases.forEach(disease => {
+        totalCases += 1;
+        if (disease.outcome === 'cured' || disease.outcome === 'improved') {
+          successfulCases += 1;
+        }
+      });
+    });
 
-    user.successRate = user.totalPatients > 0 ?
-      (user.successfulCases / user.totalPatients) * 100 : 0;
+    user.successfulCases = successfulCases;
+    user.successRate = totalCases > 0 ? (successfulCases / totalCases) * 100 : 0;
 
     await user.save();
 
@@ -549,7 +552,7 @@ router.post('/add-disease', async (req, res) => {
       });
     }
 
-    const patient = user.patients.id(patientId);
+    const patient = user.patients.find(p => p.patientId === patientId);
     if (!patient) {
       return res.status(404).json({
         success: false,
@@ -561,6 +564,7 @@ router.post('/add-disease', async (req, res) => {
       name: diseaseData.name,
       nameTranslated: diseaseData.nameTranslated || null,
       diagnosis: diseaseData.diagnosis || null,
+      simplifiedDiagnosis: diseaseData.simplifiedDiagnosis || null,
       treatmentDate: diseaseData.treatmentDate || new Date(),
       outcome: diseaseData.outcome || 'ongoing',
       complexity: diseaseData.complexity || null
@@ -571,16 +575,25 @@ router.post('/add-disease', async (req, res) => {
     patient.Lastdisease = diseaseData.name;
     patient.LastdiseaseTranslated = diseaseData.nameTranslated || null;
     patient.Lastdiagnosis = diseaseData.diagnosis || null;
+    patient.LastdiagnosisSimplified = diseaseData.simplifiedDiagnosis || null;
     patient.LasttreatmentDate = diseaseData.treatmentDate || new Date();
     patient.Lastoutcome = diseaseData.outcome || 'ongoing';
     patient.Lastcomplexity = diseaseData.complexity || null;
 
-    if (newDisease.outcome === 'cured' || newDisease.outcome === 'improved') {
-      user.successfulCases += 1;
-    }
+    let totalCases = 0;
+    let successfulCases = 0;
 
-    user.successRate = user.totalPatients > 0 ?
-      (user.successfulCases / user.totalPatients) * 100 : 0;
+    user.patients.forEach(patient => {
+      patient.diseases.forEach(disease => {
+        totalCases += 1;
+        if (disease.outcome === 'cured' || disease.outcome === 'improved') {
+          successfulCases += 1;
+        }
+      });
+    });
+
+    user.successfulCases = successfulCases;
+    user.successRate = totalCases > 0 ? (successfulCases / totalCases) * 100 : 0;
 
     await user.save();
 
@@ -588,7 +601,12 @@ router.post('/add-disease', async (req, res) => {
       success: true,
       message: 'Disease added successfully',
       disease: newDisease,
-      patient: patient
+      patient: patient,
+      userStats: {
+        totalPatients: user.totalPatients,
+        successfulCases: user.successfulCases,
+        successRate: user.successRate
+      }
     });
 
   } catch (error) {
@@ -621,32 +639,44 @@ router.patch('/update-disease-outcome', async (req, res) => {
       });
     }
 
-    const patient = user.patients.id(patientId);
-    if (!patient || !patient.diseases[diseaseIndex]) {
+    // FIX: Use find() to search by patientId field
+    const patient = user.patients.find(p => p.patientId === patientId);
+    if (!patient) {
       return res.status(404).json({
         success: false,
-        message: 'Patient or disease not found'
+        message: 'Patient not found'
+      });
+    }
+
+    if (!patient.diseases || !patient.diseases[diseaseIndex]) {
+      return res.status(404).json({
+        success: false,
+        message: 'Disease not found at the specified index'
       });
     }
 
     const previousOutcome = patient.diseases[diseaseIndex].outcome;
+    
     patient.diseases[diseaseIndex].outcome = outcome;
 
     if (diseaseIndex === 0) {
       patient.Lastoutcome = outcome;
     }
 
-    const wasPreviouslySuccessful = previousOutcome === 'cured' || previousOutcome === 'improved';
-    const isNowSuccessful = outcome === 'cured' || outcome === 'improved';
+    let totalCases = 0;
+    let successfulCases = 0;
 
-    if (wasPreviouslySuccessful && !isNowSuccessful) {
-      user.successfulCases = Math.max(0, user.successfulCases - 1);
-    } else if (!wasPreviouslySuccessful && isNowSuccessful) {
-      user.successfulCases += 1;
-    }
+    user.patients.forEach(patient => {
+      patient.diseases.forEach(disease => {
+        totalCases += 1;
+        if (disease.outcome === 'cured' || disease.outcome === 'improved') {
+          successfulCases += 1;
+        }
+      });
+    });
 
-    user.successRate = user.totalPatients > 0 ?
-      (user.successfulCases / user.totalPatients) * 100 : 0;
+    user.successfulCases = successfulCases;
+    user.successRate = totalCases > 0 ? (successfulCases / totalCases) * 100 : 0;
 
     await user.save();
 
@@ -655,6 +685,7 @@ router.patch('/update-disease-outcome', async (req, res) => {
       message: 'Disease outcome updated successfully',
       disease: patient.diseases[diseaseIndex],
       userStats: {
+        totalPatients: user.totalPatients,
         successfulCases: user.successfulCases,
         successRate: user.successRate
       }
