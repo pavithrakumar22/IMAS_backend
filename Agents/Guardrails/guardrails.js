@@ -6,7 +6,7 @@ loadEnv();
 const llm = new ChatGoogleGenerativeAI({
   model: "gemini-2.5-flash",
   maxOutputTokens: 2048,
-  apiKey: process.env.GOOGLE_API_KEY
+  apiKey: process.env.GOOGLE_API_KEY2
 });
 
 class Guardrails {
@@ -14,31 +14,86 @@ class Guardrails {
     this.llm = llm;
   }
 
-  async evaluateTranslation(input, output) {
+  extractContent(response) {
+    let content = '';
+    
+    if (Array.isArray(response.content)) {
+      content = response.content.map(item => {
+        if (typeof item === 'string') return item;
+        if (item.text) return item.text;
+        if (item.content) return item.content;
+        return JSON.stringify(item);
+      }).join('');
+    } else if (typeof response.content === 'string') {
+      content = response.content;
+    } else if (response.content && response.content.text) {
+      content = response.content.text;
+    } else {
+      content = JSON.stringify(response.content);
+    }
+    
+    content = content
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .replace(/`/g, '')
+      .trim();
+    
+    return content;
+  }
+
+  parseJSONSafely(content, fallback = null) {
+    if (content === null || content === undefined) return fallback;
+    let str = String(content).trim();
+    if (!str) return fallback;
+    const codeBlockMatch = str.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+    if (codeBlockMatch && codeBlockMatch[1].trim()) {
+      str = codeBlockMatch[1].trim();
+    } else {
+      const jsonMatch = str.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+      if (jsonMatch) str = jsonMatch[1].trim();
+    }
+    if (!str) return fallback;
     try {
-      const prompt = `You are a translation quality evaluator. Evaluate the translation based on input and output.
+      return JSON.parse(str);
+    } catch {
+      return fallback;
+    }
+  }
 
-        Input Data: ${JSON.stringify(input)}
-        Output Data: ${JSON.stringify(output)}
+  async evaluateTranslation(input, output) {
+  try {
+    const prompt = `You are a translation quality evaluator. Evaluate the translation based on input and output.
 
-        Evaluate based on:
-        1. Input validation: Is text present? Are source/target languages valid?
-        2. Output validation: Is translation present? Did translation actually occur (output != input)?
-        3. Translation quality: Is meaning preserved? Any hallucinations?
-        4. Length ratio: Is output length reasonable compared to input?
+      Input Data: ${JSON.stringify(input)}
+      Output Data: ${JSON.stringify(output)}
 
-        Respond with ONLY a JSON object:
-        {
-        "score": [0.0 to 10.0],
-        "reason": "brief explanation"
-        }`;
+      Evaluate based on:
+      1. Input validation: Is text present? Are source and target languages valid?
+      2. Output validation: Is a translation present? Does the output convey the same meaning in English, even if some original text remains?
+      3. Translation quality: Is the main meaning preserved? Are there any hallucinations, mistranslations, or major omissions?
+      4. Length ratio: Is the output length reasonable compared to input?
+      5. Ignore numeric conversions (e.g., numbers to words or vice versa).
+      6. Detect the input source language automatically without using the "src" attribute from input, while the output target language is English ONLY.
+      7. If the translation contains small untranslated parts (such as names, idioms, or short native text) but the overall output is understandable and mostly English, do not penalize heavily.
+      8. Focus more on meaning preservation and readability in English than on full literal translation.
+
+      Scoring guide (0–10):
+      - 0–3: Translation failed or mostly untranslated.
+      - 4–6: Partial translation with unclear meaning.
+      - 7–8: Good translation; meaning clear though minor untranslated text remains.
+      - 9–10: Excellent translation; accurate, fluent, and natural English.
+
+      CRITICAL: Your response must be ONLY valid JSON with no extra text. Use simple language in the reason field without special characters.
+
+      Return format:
+      {"score": 8.5, "reason": "Translation is accurate and preserves meaning"}`;
 
       const response = await this.llm.invoke(prompt);
-      let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const content = this.extractContent(response);
       
-      content = content.replace(/```json\s*([\s\S]*?)\s*```/g, '$1').trim();
-      
-      const result = JSON.parse(content);
+      const result = this.parseJSONSafely(content, 'Translation Evaluation');
+
+      console.log(result);
       
       return {
         score: result.score || 0,
@@ -59,35 +114,27 @@ class Guardrails {
     try {
         const prompt = `You are a professional medical diagnosis quality evaluator. Evaluate the ${complexity} complexity diagnosis provided.
 
-        Input (Patient Symptoms/Query): ${JSON.stringify(input)}
-        Output (Diagnosis/Health Plan): ${JSON.stringify(output)}
-        Complexity Level: ${complexity}
+      Input (Patient Symptoms/Query): ${JSON.stringify(input)}
+      Output (Diagnosis/Health Plan): ${JSON.stringify(output)}
+      Complexity Level: ${complexity}
 
-        Evaluate the output based on the following criteria:
+      Evaluate the output based on:
+      1. Input validation: Ensure the patient symptoms/query are clear, complete, and medically relevant
+      2. Output completeness: Confirm the diagnosis includes thorough analysis, differential considerations, treatment plan
+      3. Medical accuracy: Verify all recommendations are evidence-based, safe, and suitable for ${complexity} complexity cases
+      4. Clarity: Ensure the advice is actionable, concise, and understandable
+      5. Safety: Identify any potential harmful or misleading recommendations
+      6. Emergency awareness: For HIGH complexity, ensure urgent conditions are properly flagged
 
-        1. Input validation: Ensure the patient symptoms/query are clear, complete, and medically relevant.
-        2. Output completeness: Confirm the diagnosis includes a thorough analysis of symptoms, differential considerations, treatment plan, and any necessary specialist referrals.
-        3. Medical accuracy and appropriateness: Verify all recommendations are evidence-based, safe, and suitable for ${complexity} complexity cases.
-        4. Clarity and usability: Ensure the advice is actionable, concise, and understandable by the patient or healthcare provider.
-        5. Safety and risk management: Identify any potential harmful or misleading recommendations.
-        6. Emergency awareness: For HIGH complexity cases, ensure any urgent or emergency conditions are properly flagged.
+      CRITICAL: Your response must be ONLY valid JSON with no extra text. Keep the reason brief and use simple language without quotes or special characters inside the text.
 
-        Assign a score from 0.0 to 10.0 reflecting overall quality, with 10.0 being perfect. Provide a brief justification for your score.
-
-        Respond strictly with a JSON object only, no explanations outside JSON:
-
-        {
-            "score": [0.0 to 10.0],
-            "reason": "Brief explanation of the score based on the evaluation criteria."
-        }`;
-
+      Return format:
+      {"score": 8.5, "reason": "Diagnosis is thorough and medically sound"}`;
 
       const response = await this.llm.invoke(prompt);
-      let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const content = this.extractContent(response);
       
-      content = content.replace(/```json\s*([\s\S]*?)\s*```/g, '$1').trim();
-      
-      const result = JSON.parse(content);
+      const result = this.parseJSONSafely(content, 'Diagnosis Evaluation');
       
       return {
         score: result.score || 0,
@@ -108,37 +155,29 @@ class Guardrails {
     try {
         const prompt = `You are a medical content simplification quality evaluator. Evaluate if the medical diagnosis was simplified correctly for the target audience.
 
-        Original Medical Diagnosis: ${JSON.stringify(input)}
-        Simplified Output: ${JSON.stringify(output)}
-        Target Audience: ${audience || 'general'}
+      Original Medical Diagnosis: ${JSON.stringify(input)}
+      Simplified Output: ${JSON.stringify(output)}
+      Target Audience: ${audience || 'general'}
 
-        Rules:
-        - Respond strictly with a single JSON object, nothing else.
-        - Do not include explanations outside JSON.
-        - JSON format must be:
-        {
-        "score": 0.0-10.0,
-        "reason": "Brief explanation of the score"
-        }
+      Evaluation criteria:
+      1. Content preservation - All important medical information retained
+      2. Readability - Easy to understand for target audience
+      3. Accuracy - No medical errors introduced during simplification
+      4. No jargon - Medical terms explained in simple language
+      5. Actionability - Clear next steps for the patient
+      6. Safety - All warnings and precautions maintained
+      7. Completeness - No critical information lost
 
-        Evaluation criteria:
-        1. Content preservation
-        2. Readability
-        3. Accuracy
-        4. No jargon
-        5. Actionability
-        6. Safety
-        7. No loss of important info
+      CRITICAL: Your response must be ONLY valid JSON with no extra text. Keep the reason brief and simple without quotes or special characters.
+      CRITICAL: Respond ONLY with valid JSON. Do NOT include explanations, markdown, or extra characters.
 
-        Assign a score from 0.0 to 10.0, where 10.0 means perfect simplification.
-        `;
+      Return format:
+      {"score": 8.5, "reason": "Simplification is clear and preserves all key information"}`;
 
       const response = await this.llm.invoke(prompt);
-      let content = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+      const content = this.extractContent(response);
       
-      content = content.replace(/```json\s*([\s\S]*?)\s*```/g, '$1').trim();
-      
-      const result = JSON.parse(content);
+      const result = this.parseJSONSafely(content, 'Simplification Evaluation');
       
       return {
         score: result.score || 0,

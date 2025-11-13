@@ -5,13 +5,12 @@ loadEnv();
 
 class SimplifyAgent {
     constructor() {
-        console.log('🔧 Initializing SimplifyAgent');
         
-        if (!process.env.GEMINI_API_KEY) {
-            throw new Error('GEMINI_API_KEY environment variable is required');
+        if (!process.env.GEMINI_API_KEY3) {
+            throw new Error('GEMINI_API_KEY3 environment variable is required');
         }
 
-        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY3);
         this.model = this.genAI.getGenerativeModel({ 
             model: "gemini-2.5-flash", 
             generationConfig: {
@@ -194,8 +193,7 @@ class SimplifyAgent {
             Markdown Report:
             `;
 
-            const result = await this.model.generateContent(prompt);
-            const response = await result.response;
+            const response = await this.safeGenerate(prompt);
             const markdown = response.text().trim();
 
             return markdown && markdown.length > 100 ? markdown : this._createFallbackMarkdown(normalizedData);
@@ -205,6 +203,23 @@ class SimplifyAgent {
             return this._createFallbackMarkdown(normalizedData);
         }
     }
+
+    async safeGenerate(prompt, retries = 3, delay = 2000) {
+        for (let i=0; i<retries; i++) {
+            try {
+                const result = await this.model.generateContent(prompt);
+                return await result.response;
+            } catch (error) {
+                if (error.status === 503 && i < retries - 1) {
+                    console.warn(`⚠️ Gemini model overloaded, retrying (${i + 1}/${retries})...`);
+                    await new Promise(r => setTimeout(r, delay));
+                } else {
+                    throw error;
+                }
+            }
+        }
+    }
+
 
     /**
      * Create universal simplification for all agent types
@@ -237,8 +252,7 @@ class SimplifyAgent {
             PLAIN TEXT:
             `;
 
-            const result = await this.model.generateContent(prompt);
-            const response = await result.response;
+            const response = await this.safeGenerate(prompt);
             const fullResponse = response.text();
 
             const { plainText, markdown } = this._parseSimplificationResponse(fullResponse);

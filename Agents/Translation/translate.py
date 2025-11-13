@@ -2,6 +2,13 @@ from flask import Flask, request, jsonify, send_file # type: ignore
 from transformers import AutoProcessor, SeamlessM4Tv2Model # type: ignore
 from flask_cors import CORS # type: ignore
 import torchaudio
+from pydub import AudioSegment # type: ignore
+import io
+
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from Agents.XrayDiagnosis.xrays import analyse_image
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -17,6 +24,14 @@ tokenizer = AutoProcessor.from_pretrained(model_name)
 model = SeamlessM4Tv2Model.from_pretrained(model_name)
 
 
+def convert_audio_to_wav(file):
+    audio = AudioSegment.from_file(file)
+    audio = audio.set_frame_rate(16000).set_channels(1).set_sample_width(2)
+    buffer = io.BytesIO()
+    audio.export(buffer, format="wav")
+    buffer.seek(0)
+    return buffer
+
 def translate_ttt(inp, src, tgt, tokenizer, model):
     inputs = tokenizer(text=inp, src_lang=src, return_tensors="pt")
     out_tokens = model.generate(**inputs, tgt_lang=tgt, generate_speech=False)
@@ -25,7 +40,8 @@ def translate_ttt(inp, src, tgt, tokenizer, model):
 
 
 def translate_stt(inp, src, tgt, processor, model):
-    audio, orig_freq =  torchaudio.load(inp)
+    wav_buffer = convert_audio_to_wav(inp)
+    audio, orig_freq =  torchaudio.load(wav_buffer)
     audio =  torchaudio.functional.resample(audio, orig_freq=orig_freq, new_freq=16_000) # must be a 16 kHz waveform array
     audio_inputs = processor(audios=audio, return_tensors="pt")
     audio_array_from_audio = model.generate(**audio_inputs, tgt_lang=tgt,generate_speech=False)[0]
@@ -51,7 +67,7 @@ def stt_translate():
       audio = request.files['audio']      
       src = request.form['src']
       tgt = request.form['tgt']
-      translated_speech_to_text=translate_stt(audio,src,tgt,tokenizer,model)
+      translated_speech_to_text = translate_stt(audio,src,tgt,tokenizer,model)
       return jsonify({'output':translated_speech_to_text}),200
 
   except Exception as e:

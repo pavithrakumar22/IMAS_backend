@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import combinedRoutes from './api/routes/combined.js';
+import langgraphroutes from './api/routes/langgraphroutes.js';
 import mongoose from 'mongoose';
 import authRoutes from './api/routes/authRoutes.js';
 import interviewRoutes from "./api/routes/interview.js"
@@ -34,6 +35,7 @@ mongoose.connect(process.env.MONGODB_URI)
 app.use('/api/auth', authRoutes);
 app.use('/api/combined', combinedRoutes);
 app.use('/api/interview', interviewRoutes);
+app.use('/api/lang',langgraphroutes);
 // app.use("/api/handle-user", handleUser);
 
 app.get('/health', (req, res) => res.json({ status: "Node is alive" }));

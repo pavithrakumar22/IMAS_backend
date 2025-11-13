@@ -513,7 +513,7 @@ router.post('/append-patient', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error saving patient:', error);
+    console.error('Error saving patient...');
     res.status(500).json({
       success: false,
       message: 'Internal server error',
