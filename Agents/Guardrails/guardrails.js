@@ -61,19 +61,27 @@ class Guardrails {
   }
 
   async evaluateTranslation(input, output) {
-    try {
-      const prompt = `You are a translation quality evaluator. Evaluate the translation based on input and output.
+  try {
+    const prompt = `You are a translation quality evaluator. Evaluate the translation based on input and output.
 
       Input Data: ${JSON.stringify(input)}
       Output Data: ${JSON.stringify(output)}
 
       Evaluate based on:
-      1. Input validation: Is text present? Are source/target languages valid?
-      2. Output validation: Is translation present? Did translation actually occur (output != input)?
-      3. Translation quality: Is meaning preserved? Any hallucinations?
-      4. Length ratio: Is output length reasonable compared to input?
-      5. Dont mind about the numeric values converted to words
-      6. Detect the input source language automatically without using the "src" attribute from input while the ouput target language is english ONLY
+      1. Input validation: Is text present? Are source and target languages valid?
+      2. Output validation: Is a translation present? Does the output convey the same meaning in English, even if some original text remains?
+      3. Translation quality: Is the main meaning preserved? Are there any hallucinations, mistranslations, or major omissions?
+      4. Length ratio: Is the output length reasonable compared to input?
+      5. Ignore numeric conversions (e.g., numbers to words or vice versa).
+      6. Detect the input source language automatically without using the "src" attribute from input, while the output target language is English ONLY.
+      7. If the translation contains small untranslated parts (such as names, idioms, or short native text) but the overall output is understandable and mostly English, do not penalize heavily.
+      8. Focus more on meaning preservation and readability in English than on full literal translation.
+
+      Scoring guide (0–10):
+      - 0–3: Translation failed or mostly untranslated.
+      - 4–6: Partial translation with unclear meaning.
+      - 7–8: Good translation; meaning clear though minor untranslated text remains.
+      - 9–10: Excellent translation; accurate, fluent, and natural English.
 
       CRITICAL: Your response must be ONLY valid JSON with no extra text. Use simple language in the reason field without special characters.
 
