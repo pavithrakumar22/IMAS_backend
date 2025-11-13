@@ -110,21 +110,6 @@ def xray_diagnosis():
         print(e)
         return jsonify({'error': "Failed to process X-ray image"}), 500
 
-@app.route('/xray',methods=["POST"])
-def xray_diagnosis():
-    if 'image' not in request.files:
-        return jsonify({'error': "Missing image file"}), 400
-    try:
-        image = request.files['image']
-        image_path = f"./Agents/XrayDiagnosis/images/{image.filename}"
-        image.save(image_path)
-        diagnosis = analyse_image(image_path)
-        return jsonify(diagnosis), 200
-    
-    except Exception as e:
-        print(e)
-        return jsonify({'error': "Failed to process X-ray image"}), 500
-
 if __name__ == '__main__':
     app.run(port=8000, threaded=False)
 
